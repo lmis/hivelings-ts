@@ -11,7 +11,7 @@ import {
   EntityDetailsWithPosition
 } from "hivelings/types/simulation";
 import { addRotations } from "hivelings/transformations";
-import { distance, Position } from "utils";
+import { distance, Position, positionEquals } from "utils";
 import maxBy from "lodash/fp/maxBy";
 import max from "lodash/fp/max";
 
@@ -44,7 +44,7 @@ export const addEntity = (
       zIndex:
         (max(
           entities
-            .filter((e) => e.position === entity.position)
+            .filter((e) => positionEquals(e.position, entity.position))
             .map((e) => e.zIndex)
         ) ?? -1) + 1
     }
@@ -85,7 +85,9 @@ export const applyDecision = (
 
   const topEntityAtTarget = maxBy((e: Entity) => e.zIndex)(
     originalState.entities.filter(
-      (e) => e.position === targetPos && e.identifier !== hiveling.identifier
+      (e) =>
+        positionEquals(e.position, targetPos) &&
+        e.identifier !== hiveling.identifier
     )
   );
   const stateAfterDecision = (() => {

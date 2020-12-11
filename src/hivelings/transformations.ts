@@ -37,8 +37,8 @@ export const addRotations = (a: Rotation, b: Rotation): Rotation => {
 };
 
 const relativePosition = ([ox, oy]: Position, [x, y]: Position): Position => [
-  ox - x,
-  oy - y
+  x - ox,
+  y - oy
 ];
 
 const inverseRotatePosition = (

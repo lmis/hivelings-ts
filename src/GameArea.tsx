@@ -15,6 +15,7 @@ import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { useGameLoop } from "game/useGameLoop";
 import { Entity } from "hivelings/types/simulation";
 import { EntityType } from "hivelings/types/common";
+import sortBy from "lodash/fp/sortBy";
 
 const background = { width: 800, height: 800 };
 
@@ -87,11 +88,12 @@ export const GameArea: FC<Props> = () => {
           transformPositionToPixelSpace([gameBorders.left, gameBorders.top])
         );
 
-        state.entities.forEach(({ position, ...rest }) =>
-          drawEntity(ctx, {
-            position: transformPositionToPixelSpace(position),
-            ...rest
-          })
+        sortBy((e: Entity) => e.zIndex)(state.entities).forEach(
+          ({ position, ...rest }) =>
+            drawEntity(ctx, {
+              position: transformPositionToPixelSpace(position),
+              ...rest
+            })
         );
       }
     },
@@ -107,17 +109,6 @@ export const GameArea: FC<Props> = () => {
 
   return (
     <>
-      <button
-        onClick={() =>
-          console.log(
-            game
-              .getState()
-              .entities.filter((t) => t.type === EntityType.HIVELING)
-          )
-        }
-      >
-        DUMP
-      </button>
       <canvas
         ref={canvasRef}
         className="Canvas"
