@@ -22,3 +22,9 @@ export const distanceSquared = (
 
 export const distance = (a: Position, b: Position): number =>
   Math.sqrt(distanceSquared(a, b));
+
+export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
+  xa === ya && xb === yb;
+
+export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
+  xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));

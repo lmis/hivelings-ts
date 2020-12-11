@@ -1,8 +1,8 @@
 export const gameBorders = {
-  bottom: 0,
-  top: 800,
-  left: 0,
-  right: 800
+  bottom: -16,
+  top: 17,
+  left: -10,
+  right: 11
 };
 
 export const canvasWidth = 800;

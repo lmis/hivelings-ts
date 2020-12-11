@@ -1,42 +1,58 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import React, { FC, useRef, useCallback } from "react";
+import React, { FC, useRef, useCallback, useMemo } from "react";
 
-import { useAssets, useAsset, useAnimation, useContext2D } from "canvas/render";
+import { useAssets, useAsset, useContext2D } from "canvas/render";
 import { drawCircle, drawImage } from "canvas/draw";
 import { distanceSquared, Position, roundTo } from "utils";
-import {gameBorders, canvasWidth, canvasHeight} from "config"
+import { gameBorders, canvasWidth, canvasHeight } from "config";
+import {
+  makeGameIteration,
+  makeHivelingMindFromFunction,
+  startingState
+} from "hivelings/game";
+import { GameState } from "hivelings/types/simulation";
+import { hivelingMind as demoMind } from "hivelings/demoMind";
+import { useGameLoop } from "game/useGameLoop";
+import { Entity } from "hivelings/types/simulation";
+import { EntityType } from "hivelings/types/common";
 
-const background = {width: 800, height: 800};
+const background = { width: 800, height: 800 };
 
-interface Props {
-  hivelingMind: () => void;
-}
+interface Props {}
 const drawBackground = (
   ctx: CanvasRenderingContext2D,
-  background: {width: number, height: number},
+  background: { width: number; height: number },
   scale: number,
   [x, y]: Position
 ) => {
   ctx.save();
-  ctx.fillStyle = "black"
-  ctx.fillRect(x,y, scale * background.width, scale * background.height);
-ctx.restore();
-}; 
+  ctx.fillStyle = "grey";
+  ctx.fillRect(x, y, scale * background.width, scale * background.height);
+  ctx.restore();
+};
 
-export const GameArea: FC<Props> = ({
-  hivelingMind
-}) => {
+const drawEntity = (
+  ctx: CanvasRenderingContext2D,
+  { type, position }: Entity
+) => {
+  ctx.save();
+  ctx.fillStyle = type === EntityType.HIVELING ? "black" : "red";
+  ctx.fillRect(position[0], position[1], 20, 20);
+  ctx.restore();
+};
+
+export const GameArea: FC<Props> = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctx = useContext2D(canvasRef);
 
   const draw = useCallback(
-    async (frameNumber: number) => {
+    (state: GameState) => {
       if (!ctx) {
         return;
       }
 
       if (background) {
-        const scale = 1
+        const scale = 1;
         const [xScale, yScale] = [
           (gameBorders.right - gameBorders.left) / (background.width * scale),
           (gameBorders.top - gameBorders.bottom) / (background.height * scale)
@@ -51,11 +67,12 @@ export const GameArea: FC<Props> = ({
           canvasHeight
         ]);
 
-        const position = [100,100]
+        const position = [0, 0];
         const [xPlayer, yPlayer] = position;
 
-        const [xCanvas, yCanvas] = [xPlayer - viewWidth / 2,
-            yPlayer + viewHeight / 2
+        const [xCanvas, yCanvas] = [
+          xPlayer - viewWidth / 2,
+          yPlayer + viewHeight / 2
         ];
 
         const transformPositionToPixelSpace = ([x, y]: Position): Position => [
@@ -69,17 +86,38 @@ export const GameArea: FC<Props> = ({
           scale,
           transformPositionToPixelSpace([gameBorders.left, gameBorders.top])
         );
+
+        state.entities.forEach(({ position, ...rest }) =>
+          drawEntity(ctx, {
+            position: transformPositionToPixelSpace(position),
+            ...rest
+          })
+        );
       }
     },
-    [
-      ctx,
-    ]
+    [ctx]
   );
 
-  useAnimation(draw);
+  const gameIteration = useMemo(
+    () => makeGameIteration(makeHivelingMindFromFunction(demoMind)),
+    []
+  );
+
+  const game = useGameLoop(gameIteration, draw, startingState);
 
   return (
     <>
+      <button
+        onClick={() =>
+          console.log(
+            game
+              .getState()
+              .entities.filter((t) => t.type === EntityType.HIVELING)
+          )
+        }
+      >
+        DUMP
+      </button>
       <canvas
         ref={canvasRef}
         className="Canvas"
