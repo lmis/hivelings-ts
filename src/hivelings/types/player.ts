@@ -1,18 +1,28 @@
-import { Position, Decision, EntityType } from "hivelings/types/common";
+import { Decision, EntityType } from "hivelings/types/common";
+import { Position } from "utils";
 
-export interface Entity {
+export interface EntityBase {
   position: Position;
   zIndex: number;
-  entityType: EntityType;
 }
 
-export interface Hiveling extends Entity {
-  entityType: EntityType.HIVELING;
+export interface HivelingDetails {
+  type: EntityType.HIVELING;
   hasNutrition: boolean;
   spreadsPheromones: boolean;
   recentDecisions: Decision[];
   memory: String;
 }
+export type Hiveling = EntityBase & HivelingDetails;
+
+export type Entity = EntityBase &
+  (
+    | Hiveling
+    | { type: EntityType.NUTRITION }
+    | { type: EntityType.HIVE_ENTRANCE }
+    | { type: EntityType.PHEROMONE }
+    | { type: EntityType.OBSTACLE }
+  );
 
 export const isHiveling = (e: Entity): e is Hiveling =>
-  e.entityType === EntityType.HIVELING;
+  e.type === EntityType.HIVELING;

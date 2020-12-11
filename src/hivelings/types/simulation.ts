@@ -1,20 +1,39 @@
 import { Rotation, EntityType } from "hivelings/types/common";
 import {
-  Entity as PlayerEntity,
-  Hiveling as PlayerHiveling
+  EntityBase as PlayerEntityBase,
+  HivelingDetails as PlayerHivelingDetails
 } from "hivelings/types/player";
 import { State } from "seedrandom";
+import { Position } from "utils";
 
-export interface Entity extends PlayerEntity {
+export interface EntityBase extends PlayerEntityBase {
   identifier: number;
   highlighted: boolean;
 }
 
-export type Hiveling = PlayerHiveling &
-  Entity & {
-    // Rotation w.r.t North
-    orientation: Rotation;
-  };
+export interface HivelingDetails extends PlayerHivelingDetails {
+  // Rotation w.r.t North
+  orientation: Rotation;
+}
+export type Hiveling = EntityBase & HivelingDetails;
+
+export type Entity = EntityBase &
+  (
+    | Hiveling
+    | { type: EntityType.NUTRITION }
+    | { type: EntityType.HIVE_ENTRANCE }
+    | { type: EntityType.PHEROMONE }
+    | { type: EntityType.OBSTACLE }
+  );
+
+export type EntityDetails =
+  | HivelingDetails
+  | { type: EntityType.NUTRITION }
+  | { type: EntityType.HIVE_ENTRANCE }
+  | { type: EntityType.PHEROMONE }
+  | { type: EntityType.OBSTACLE };
+
+export type EntityDetailsWithPosition = EntityDetails & { position: Position };
 
 export interface GameState {
   entities: Entity[];
@@ -24,4 +43,4 @@ export interface GameState {
 }
 
 export const isHiveling = (e: Entity): e is Hiveling =>
-  e.entityType === EntityType.HIVELING;
+  e.type === EntityType.HIVELING;

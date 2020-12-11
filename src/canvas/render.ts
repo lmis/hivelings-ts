@@ -1,5 +1,5 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import { MutableRefObject, useEffect, useState, useRef, useMemo } from "react";
+import { MutableRefObject, useEffect, useState, useMemo } from "react";
 declare const require: (url: string) => string;
 
 export const useContext2D = (
@@ -11,25 +11,6 @@ export const useContext2D = (
   }, [canvasRef]);
 
   return ctx;
-};
-
-export const useAnimation = (
-  onFrame: (frameNumber: number) => Promise<void>
-) => {
-  const requestRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const animate = async () => {
-      await onFrame(requestRef.current ?? 0);
-      requestRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-    };
-  }, [onFrame]);
 };
 
 export const useAssets = (names: string[]): HTMLImageElement[] | null => {
