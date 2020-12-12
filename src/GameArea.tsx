@@ -7,9 +7,9 @@ import { distanceSquared, Position, roundTo } from "utils";
 import { gameBorders, canvasWidth, canvasHeight } from "config";
 import {
   makeGameIteration,
-  makeHivelingMindFromFunction,
-  startingState
+  makeHivelingMindFromFunction
 } from "hivelings/game";
+import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import { GameState } from "hivelings/types/simulation";
 import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { useGameLoop } from "game/useGameLoop";
@@ -104,6 +104,8 @@ export const GameArea: FC<Props> = () => {
     () => makeGameIteration(makeHivelingMindFromFunction(demoMind)),
     []
   );
+
+  const startingState = useMemo(() => loadStartingState(ScenarioName.BASE), []);
 
   const game = useGameLoop(gameIteration, draw, startingState);
 

@@ -2,25 +2,19 @@ import {
   HivelingMind,
   Decision,
   Input,
-  EntityType,
-  Rotation
+  EntityType
 } from "hivelings/types/common";
 import {
   GameState,
   Entity,
   isHiveling,
-  Hiveling,
-  EntityDetailsWithPosition
+  Hiveling
 } from "hivelings/types/simulation";
 import { entityForPlayer } from "hivelings/transformations";
-import { addEntity, applyDecision, sees } from "hivelings/simulation";
-import { fromSeed, load, shuffle } from "rng/utils";
+import { applyDecision, sees } from "hivelings/simulation";
+import { load, shuffle } from "rng/utils";
 import { GameIteration } from "game/useGameLoop";
 import filter from "lodash/fp/filter";
-import { range } from "lodash";
-import { crossProduct, Position } from "utils";
-
-const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
 
 const takeDecision = async (
   randomSeed: number,
@@ -38,72 +32,6 @@ const takeDecision = async (
   };
   return [await hivelingMind(input), hiveling];
 };
-
-export const emptyState: GameState = {
-  entities: [],
-  nextId: 0,
-  score: 0,
-  rngState: fromSeed("emptyState").state()
-};
-
-const startingHivelingPositions = [
-  [1, 4],
-  [-3, 12],
-  [0, -6],
-  [2, 2]
-] as Position[];
-
-const startingEntrancePositions = crossProduct([-5, 5], [-5, 5]) as Position[];
-const startingTopAndBottom = crossProduct(range(-9, 10), [
-  -16,
-  16
-]) as Position[];
-const startingSides = crossProduct([-10, 10], range(-16, 17)) as Position[];
-const startingNutrition = crossProduct(range(-5, 6), [
-  -15,
-  14,
-  0,
-  14,
-  15
-]) as Position[];
-export const startingState = [
-  ...startingHivelingPositions.map(
-    (position) =>
-      ({
-        position,
-        type: HIVELING,
-        memory: "",
-        hasNutrition: false,
-        spreadsPheromones: false,
-        recentDecisions: [],
-        orientation: Rotation.NONE
-      } as EntityDetailsWithPosition)
-  ),
-  ...startingEntrancePositions.map(
-    (position) =>
-      ({
-        position,
-        type: HIVE_ENTRANCE
-      } as EntityDetailsWithPosition)
-  ),
-  ...startingTopAndBottom.map(
-    (position) =>
-      ({
-        position,
-        type: OBSTACLE
-      } as EntityDetailsWithPosition)
-  ),
-  ...startingSides.map(
-    (position) => ({ position, type: OBSTACLE } as EntityDetailsWithPosition)
-  ),
-  ...startingNutrition.map(
-    (position) =>
-      ({
-        position,
-        type: NUTRITION
-      } as EntityDetailsWithPosition)
-  )
-].reduce(addEntity, emptyState);
 
 export const makeGameIteration = (
   hivelingMind: HivelingMind
