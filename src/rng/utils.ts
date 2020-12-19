@@ -1,7 +1,4 @@
-import { makeLaggedFibo, Rng, RngState } from "rng/laggedFibo";
-
-export const load = ({ config, sequence }: RngState): Rng =>
-  makeLaggedFibo(config)(sequence.join(""));
+import { Rng } from "rng/laggedFibo";
 
 export const int32 = (rng: Rng, lowerIncl: number, upperExcl: number) =>
   lowerIncl + (rng.getNext() % (upperExcl - lowerIncl));
@@ -21,3 +18,6 @@ export const shuffle = <T>(rng: Rng, xs: T[]): T[] => {
 
 export const pickRandom = <T>(rng: Rng, xs: T[]): T =>
   xs[int32(rng, 0, xs.length)];
+
+export const randomPrintable = (rng: Rng, n: number): string =>
+  [...Array(55)].map((_) => String.fromCharCode(int32(rng, 32, 127))).join("");

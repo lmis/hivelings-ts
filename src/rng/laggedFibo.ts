@@ -15,29 +15,38 @@ export interface Rng {
   getNext: () => number;
 }
 
-export const makeLaggedFibo = (config: Config) => (
-  seed: string | number
-): Rng => {
-  const { j, k, m, defaultSeed } = config;
-  let sequence = [...seed.toString(), ...defaultSeed]
-    .slice(0, k)
-    .map((c) => c.charCodeAt(0));
-
-  const getNext = () => {
-    const next = (sequence[j - 1] + sequence[k - 1]) % m;
-    sequence = [next, ...sequence].slice(0, k);
-    return next;
-  };
-
-  // Discard the first couple random numbers
-  for (let i = 0; i < 5000; ++i) {
-    getNext();
-  }
+export const loadLaggedFibo = (state: RngState): Rng => {
+  const { config } = state;
+  let { sequence } = state;
+  const { j, k, m } = config;
 
   return {
     getState: () => ({ sequence, config }),
-    getNext
+    getNext: () => {
+      const next = (sequence[j - 1] + sequence[k - 1]) % m;
+      sequence = [next, ...sequence].slice(0, k);
+      return next;
+    }
   };
+};
+export const makeLaggedFibo = (config: Config) => (
+  seed: string | number
+): Rng => {
+  const { defaultSeed, k } = config;
+  const initialState = {
+    sequence: [...seed.toString(), ...defaultSeed]
+      .slice(0, k)
+      .map((c) => c.charCodeAt(0)),
+    config
+  };
+
+  const rng = loadLaggedFibo(initialState);
+  // Discard the first couple random numbers
+  for (let i = 0; i < 5000; ++i) {
+    rng.getNext();
+  }
+
+  return rng;
 };
 
 export const makeStdLaggedFibo = makeLaggedFibo({

@@ -7,12 +7,13 @@ import {
 } from "hivelings/types/simulation";
 import { entityForPlayer } from "hivelings/transformations";
 import { applyDecision, sees } from "hivelings/simulation";
-import { load, shuffle } from "rng/utils";
+import { shuffle, randomPrintable } from "rng/utils";
+import { loadLaggedFibo } from "rng/laggedFibo";
 import { GameIteration } from "game/useGameLoop";
 import filter from "lodash/fp/filter";
 
 const takeDecision = async (
-  randomSeed: number,
+  randomSeed: string,
   entities: Entity[],
   hivelingMind: HivelingMind,
   hiveling: Hiveling
@@ -33,7 +34,7 @@ export const makeGameIteration = (
 ): GameIteration<GameState> => {
   console.log("makeGameIteration");
   return async ({ rngState, entities, ...state }: GameState) => {
-    const rng = load(rngState);
+    const rng = loadLaggedFibo(rngState);
     const shuffledHivelings = shuffle(rng, filter(isHiveling)(entities));
 
     // The player code need not be able to run in parallel, so we sequence here
@@ -41,7 +42,12 @@ export const makeGameIteration = (
     const decisionsWithMetadata: [Decision, Hiveling][] = [];
     for (const hiveling of shuffledHivelings) {
       decisionsWithMetadata.push(
-        await takeDecision(rng.getNext(), entities, hivelingMind, hiveling)
+        await takeDecision(
+          randomPrintable(rng, rngState.sequence.length),
+          entities,
+          hivelingMind,
+          hiveling
+        )
       );
     }
 

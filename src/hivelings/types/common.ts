@@ -34,7 +34,7 @@ export type Decision =
 export interface Input {
   closeEntities: Entity[];
   currentHiveling: Hiveling;
-  randomSeed: number;
+  randomSeed: string;
 }
 
 export type HivelingMind = (input: Input) => Promise<Decision>;
