@@ -7,9 +7,8 @@ import {
 } from "hivelings/types/common";
 import { Entity, Hiveling } from "hivelings/types/player";
 import { fromSeed, pickRandom } from "rng/utils";
-import { distance, Position, positionEquals } from "utils";
+import { Position, positionEquals } from "utils";
 import { prng } from "seedrandom";
-import orderBy from "lodash/orderBy";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;

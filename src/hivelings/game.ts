@@ -1,9 +1,4 @@
-import {
-  HivelingMind,
-  Decision,
-  Input,
-  EntityType
-} from "hivelings/types/common";
+import { HivelingMind, Decision, Input } from "hivelings/types/common";
 import {
   GameState,
   Entity,

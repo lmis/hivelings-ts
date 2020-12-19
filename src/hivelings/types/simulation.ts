@@ -1,7 +1,8 @@
 import { Rotation, EntityType } from "hivelings/types/common";
 import {
   EntityBase as PlayerEntityBase,
-  HivelingDetails as PlayerHivelingDetails
+  HivelingDetails as PlayerHivelingDetails,
+  TrailDetails as PlayerTrailDetails
 } from "hivelings/types/player";
 import { State } from "seedrandom";
 import { Position } from "utils";
@@ -17,20 +18,23 @@ export interface HivelingDetails extends PlayerHivelingDetails {
 }
 export type Hiveling = EntityBase & HivelingDetails;
 
+export type TrailDetails = PlayerTrailDetails;
+export type Trail = EntityBase & TrailDetails;
+
 export type Entity = EntityBase &
   (
     | Hiveling
+    | Trail
     | { type: EntityType.NUTRITION }
     | { type: EntityType.HIVE_ENTRANCE }
-    | { type: EntityType.PHEROMONE }
     | { type: EntityType.OBSTACLE }
   );
 
 export type EntityDetails =
   | HivelingDetails
+  | TrailDetails
   | { type: EntityType.NUTRITION }
   | { type: EntityType.HIVE_ENTRANCE }
-  | { type: EntityType.PHEROMONE }
   | { type: EntityType.OBSTACLE };
 
 export type EntityDetailsWithPosition = EntityDetails & { position: Position };

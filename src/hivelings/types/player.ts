@@ -9,18 +9,23 @@ export interface EntityBase {
 export interface HivelingDetails {
   type: EntityType.HIVELING;
   hasNutrition: boolean;
-  spreadsPheromones: boolean;
   recentDecisions: Decision[];
   memory: String;
 }
 export type Hiveling = EntityBase & HivelingDetails;
 
+export interface TrailDetails {
+  type: EntityType.TRAIL;
+  lifetime: number;
+}
+export type Trail = EntityBase & TrailDetails;
+
 export type Entity = EntityBase &
   (
     | Hiveling
+    | Trail
     | { type: EntityType.NUTRITION }
     | { type: EntityType.HIVE_ENTRANCE }
-    | { type: EntityType.PHEROMONE }
     | { type: EntityType.OBSTACLE }
   );
 

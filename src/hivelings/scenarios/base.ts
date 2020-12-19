@@ -1,5 +1,8 @@
 import { EntityType, Rotation } from "hivelings/types/common";
-import { EntityDetailsWithPosition } from "hivelings/types/simulation";
+import {
+  EntityDetailsWithPosition,
+  GameState
+} from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { fromSeed } from "rng/utils";
 import { range } from "lodash";
@@ -27,7 +30,7 @@ const startingNutrition = crossProduct(range(-5, 6), [
   14,
   15
 ]) as Position[];
-const startingState = [
+const startingState: GameState = [
   ...startingHivelingPositions.map(
     (position) =>
       ({
@@ -35,7 +38,6 @@ const startingState = [
         type: HIVELING,
         memory: "",
         hasNutrition: false,
-        spreadsPheromones: false,
         recentDecisions: [],
         orientation: Rotation.NONE
       } as EntityDetailsWithPosition)

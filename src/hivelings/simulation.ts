@@ -23,7 +23,7 @@ const {
   WAIT,
   REMEMBER_128_CHARACTERS
 } = DecisionType;
-const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, PHEROMONE } = EntityType;
+const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
 export const sees = ({ position }: Hiveling, p: Position) =>
@@ -63,6 +63,12 @@ const updateHiveling = (
 const addScore = (x: number, s: GameState): GameState => ({
   ...s,
   score: s.score + x
+});
+const fadeTrails = (s: GameState): GameState => ({
+  ...s,
+  entities: s.entities
+    .map((e) => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
+    .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
 });
 
 export const applyDecision = (
@@ -166,16 +172,20 @@ export const applyDecision = (
     }
   })();
 
-  const stateWithRecentDecision = updateHiveling(
-    hiveling.identifier,
-    { recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)] },
-    stateAfterDecision
+  return addEntity(
+    fadeTrails(
+      updateHiveling(
+        hiveling.identifier,
+        {
+          recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)]
+        },
+        stateAfterDecision
+      )
+    ),
+    {
+      position: hiveling.position,
+      type: TRAIL,
+      lifetime: 9
+    }
   );
-
-  return hiveling.spreadsPheromones
-    ? addEntity(stateWithRecentDecision, {
-        position: hiveling.position,
-        type: PHEROMONE
-      })
-    : stateWithRecentDecision;
 };
