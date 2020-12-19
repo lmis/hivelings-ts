@@ -6,9 +6,9 @@ import {
   EntityType
 } from "hivelings/types/common";
 import { Entity, Hiveling } from "hivelings/types/player";
-import { fromSeed, pickRandom } from "rng/utils";
+import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
+import { pickRandom } from "rng/utils";
 import { Position, positionEquals } from "utils";
-import { prng } from "seedrandom";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
@@ -59,7 +59,7 @@ const search = (
   decision: Decision,
   closeEntities: Entity[],
   currentHiveling: Hiveling,
-  rng: prng
+  rng: Rng
 ): Decision => {
   const surroundingPoitions = [front, back, left, right];
   const targets = closeEntities.filter(condition).map((e) => e.position);
@@ -115,7 +115,7 @@ const search = (
 
 export const hivelingMind = (input: Input): Decision => {
   const { closeEntities, currentHiveling, randomSeed } = input;
-  const rng = fromSeed(randomSeed);
+  const rng = makeStdLaggedFibo(randomSeed);
   if (currentHiveling.hasNutrition) {
     // Bring food home.
     return search(

@@ -4,7 +4,7 @@ import {
   GameState
 } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
-import { fromSeed } from "rng/utils";
+import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { range } from "lodash";
 import { crossProduct, Position } from "utils";
 
@@ -70,7 +70,7 @@ const startingState: GameState = [
   entities: [],
   nextId: 0,
   score: 0,
-  rngState: fromSeed("baseScenario").state()
+  rngState: makeStdLaggedFibo("baseScenarioSeed").getState()
 });
 
 export const base = { startingState };

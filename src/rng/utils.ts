@@ -1,14 +1,13 @@
-import rng, { prng, State } from "seedrandom";
+import { makeLaggedFibo, Rng, RngState } from "rng/laggedFibo";
 
-export const load = (state: State): prng => rng("", { state });
-export const fromSeed = (x: string | number): prng =>
-  rng(x.toString(), { state: true });
+export const load = ({ config, sequence }: RngState): Rng =>
+  makeLaggedFibo(config)(sequence.join(""));
 
-export const int32 = (rng: prng, lowerIncl: number, upperExcl: number) =>
-  lowerIncl + (rng.int32() % (upperExcl - lowerIncl));
+export const int32 = (rng: Rng, lowerIncl: number, upperExcl: number) =>
+  lowerIncl + (rng.getNext() % (upperExcl - lowerIncl));
 
 // Fisher-Yates
-export const shuffle = <T>(rng: prng, xs: T[]): T[] => {
+export const shuffle = <T>(rng: Rng, xs: T[]): T[] => {
   const a = [...xs];
   const n = a.length;
   for (let i = 0; i < n; ++i) {
@@ -20,5 +19,5 @@ export const shuffle = <T>(rng: prng, xs: T[]): T[] => {
   return xs;
 };
 
-export const pickRandom = <T>(rng: prng, xs: T[]): T =>
+export const pickRandom = <T>(rng: Rng, xs: T[]): T =>
   xs[int32(rng, 0, xs.length)];

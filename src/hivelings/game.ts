@@ -41,14 +41,14 @@ export const makeGameIteration = (
     const decisionsWithMetadata: [Decision, Hiveling][] = [];
     for (const hiveling of shuffledHivelings) {
       decisionsWithMetadata.push(
-        await takeDecision(rng.int32(), entities, hivelingMind, hiveling)
+        await takeDecision(rng.getNext(), entities, hivelingMind, hiveling)
       );
     }
 
     return decisionsWithMetadata.reduce(applyDecision, {
       ...state,
       entities,
-      rngState: rng.state()
+      rngState: rng.getState()
     });
   };
 };
