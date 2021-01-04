@@ -31,7 +31,8 @@ export const sees = ({ position }: Hiveling, p: Position) =>
 
 export const addEntity = (
   { nextId, entities, ...state }: GameState,
-  entity: EntityDetailsWithPosition
+  entity: EntityDetailsWithPosition,
+  zMax: number = Infinity
 ): GameState => ({
   ...state,
   nextId: nextId + 1,
@@ -41,12 +42,15 @@ export const addEntity = (
       ...entity,
       highlighted: false,
       identifier: nextId,
-      zIndex:
-        (max(
-          entities
-            .filter((e) => positionEquals(e.position, entity.position))
-            .map((e) => e.zIndex)
-        ) ?? -1) + 1
+      zIndex: Math.min(
+        zMax,
+        1 +
+          (max(
+            entities
+              .filter((e) => positionEquals(e.position, entity.position))
+              .map((e) => e.zIndex)
+          ) ?? -1)
+      )
     }
   ]
 });
@@ -186,6 +190,7 @@ export const applyDecision = (
       position: hiveling.position,
       type: TRAIL,
       lifetime: 9
-    }
+    },
+    hiveling.zIndex - 1
   );
 };
