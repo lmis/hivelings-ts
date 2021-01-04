@@ -1,4 +1,5 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
+import { Position } from "utils";
 
 interface CommonParams {
   ctx: CanvasRenderingContext2D;
@@ -82,4 +83,19 @@ export const drawCircle = ({
     width: diameter,
     height: diameter
   });
+};
+
+export const drawLine = (
+  ctx: CanvasRenderingContext2D,
+  [xStart, yStart]: Position,
+  [xEnd, yEnd]: Position,
+  strokeStyle: CanvasRenderingContext2D["strokeStyle"]
+) => {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(xStart, yStart);
+  ctx.lineTo(xEnd, yEnd);
+  ctx.strokeStyle = strokeStyle;
+  ctx.stroke();
+  ctx.restore();
 };

@@ -1,25 +1,28 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import React, { FC, useRef, useCallback, useMemo } from "react";
 
-import { useAssets, useAsset, useContext2D } from "canvas/render";
-import { drawCircle, drawImage } from "canvas/draw";
-import { distanceSquared, Position, roundTo } from "utils";
+import { useAssets, useContext2D } from "canvas/render";
+import { drawImage, drawLine } from "canvas/draw";
+import { Position } from "utils";
 import { gameBorders, canvasWidth, canvasHeight } from "config";
 import {
   makeGameIteration,
   makeHivelingMindFromFunction
 } from "hivelings/game";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
-import { GameState } from "hivelings/types/simulation";
+import { GameState, Entity } from "hivelings/types/simulation";
+import { toDeg } from "hivelings/transformations";
 import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { useGameLoop } from "game/useGameLoop";
-import { Entity } from "hivelings/types/simulation";
 import { EntityType } from "hivelings/types/common";
 import sortBy from "lodash/fp/sortBy";
+
+const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 
 const background = { width: 800, height: 800 };
 
 interface Props {}
+
 const drawBackground = (
   ctx: CanvasRenderingContext2D,
   background: { width: number; height: number },
@@ -27,24 +30,55 @@ const drawBackground = (
   [x, y]: Position
 ) => {
   ctx.save();
-  ctx.fillStyle = "grey";
+  ctx.fillStyle = "green";
   ctx.fillRect(x, y, scale * background.width, scale * background.height);
   ctx.restore();
 };
 
-const drawEntity = (
-  ctx: CanvasRenderingContext2D,
-  { type, position }: Entity
-) => {
-  ctx.save();
-  ctx.fillStyle = type === EntityType.HIVELING ? "black" : "red";
-  ctx.fillRect(position[0], position[1], 20, 20);
-  ctx.restore();
+const drawEntity = ({
+  ctx,
+  position,
+  angle,
+  size,
+  image
+}: {
+  ctx: CanvasRenderingContext2D;
+  position: Position;
+  angle: number;
+  size: number;
+  image: HTMLImageElement | null;
+}) => {
+  if (!image) {
+    ctx.save();
+    ctx.fillStyle = "black";
+    ctx.fillRect(position[0] - size / 2, position[1] - size / 2, size, size);
+    ctx.restore();
+  } else {
+    drawImage({
+      ctx,
+      alpha: 1,
+      flipped: false,
+      image,
+      width: size,
+      height: size,
+      angle,
+      position
+    });
+  }
+};
+
+const assetDescriptors = {
+  hiveling: "Hiveling_iteration2.png",
+  hivelingWithNutrition: "Hiveling_strawberry.png",
+  nutrition: "Strawberry.png",
+  trail: "Foot_prints.png",
+  hiveEntrance: "Burrow.png"
 };
 
 export const GameArea: FC<Props> = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctx = useContext2D(canvasRef);
+  const assets = useAssets(assetDescriptors);
 
   const draw = useCallback(
     (state: GameState) => {
@@ -52,7 +86,7 @@ export const GameArea: FC<Props> = () => {
         return;
       }
 
-      if (background) {
+      if (background && Object.values(assets).every((x) => !!x)) {
         const scale = 1;
         const [xScale, yScale] = [
           (gameBorders.right - gameBorders.left) / (background.width * scale),
@@ -88,16 +122,35 @@ export const GameArea: FC<Props> = () => {
           transformPositionToPixelSpace([gameBorders.left, gameBorders.top])
         );
 
-        sortBy((e: Entity) => e.zIndex)(state.entities).forEach(
-          ({ position, ...rest }) =>
-            drawEntity(ctx, {
-              position: transformPositionToPixelSpace(position),
-              ...rest
-            })
-        );
+        sortBy((e: Entity) => e.zIndex)(state.entities).forEach((e) => {
+          const image = (() => {
+            switch (e.type) {
+              case NUTRITION:
+                return assets.nutrition;
+              case HIVELING:
+                return e.hasNutrition
+                  ? assets.hivelingWithNutrition
+                  : assets.hiveling;
+              case TRAIL:
+                return assets.trail;
+              case HIVE_ENTRANCE:
+                return assets.hiveEntrance;
+              case OBSTACLE:
+                return null;
+            }
+          })();
+          drawEntity({
+            ctx,
+            position: transformPositionToPixelSpace(e.position),
+            angle:
+              e.type === HIVELING ? (toDeg(e.orientation) * Math.PI) / 180 : 0,
+            size: 1 / xScale,
+            image
+          });
+        });
       }
     },
-    [ctx]
+    [ctx, assets]
   );
 
   const gameIteration = useMemo(
@@ -107,7 +160,9 @@ export const GameArea: FC<Props> = () => {
 
   const startingState = useMemo(() => loadStartingState(ScenarioName.BASE), []);
 
-  const game = useGameLoop(gameIteration, draw, startingState);
+  const game = useGameLoop(gameIteration, draw, startingState, {
+    framesPerGameStep: 10
+  });
 
   return (
     <>

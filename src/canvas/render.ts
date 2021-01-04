@@ -13,29 +13,29 @@ export const useContext2D = (
   return ctx;
 };
 
-export const useAssets = (names: string[]): HTMLImageElement[] | null => {
-  const [images, setImages] = useState<HTMLImageElement[] | null>(null);
+export const useAssets = (descriptors: {
+  [name: string]: string;
+}): { [name: string]: HTMLImageElement } => {
+  const [images, setImages] = useState<{ [name: string]: HTMLImageElement }>(
+    {}
+  );
 
   useEffect(() => {
-    names.forEach((name, i) => {
+    Object.entries(descriptors).forEach(([name, url], i) => {
       const img = new Image();
       img.onload = () => {
-        setImages((xs) => {
-          const res = xs ? [...xs] : [];
-          res[i] = img;
-          return res;
-        });
+        setImages((xs) => ({ ...xs, [name]: img }));
       };
-      img.src = require("../../../public/assets/" + name);
+      img.src = require("../../../public/assets/" + url);
     });
     return () => {
-      setImages(null);
+      setImages({});
     };
-  }, [names]);
+  }, [descriptors]);
   return images;
 };
 
 export const useAsset = (name: string): HTMLImageElement | null => {
-  const names = useMemo(() => [name], [name]);
-  return useAssets(names)?.[0] ?? null;
+  const descriptors = useMemo(() => ({ name }), [name]);
+  return useAssets(descriptors)?.name ?? null;
 };
