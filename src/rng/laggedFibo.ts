@@ -29,6 +29,7 @@ export const loadLaggedFibo = (state: RngState): Rng => {
     }
   };
 };
+
 export const makeLaggedFibo = (config: Config) => (
   seed: string | number
 ): Rng => {

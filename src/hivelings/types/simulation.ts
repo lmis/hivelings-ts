@@ -18,7 +18,9 @@ export interface HivelingDetails extends PlayerHivelingDetails {
 }
 export type Hiveling = EntityBase & HivelingDetails;
 
-export type TrailDetails = PlayerTrailDetails;
+export interface TrailDetails extends PlayerTrailDetails {
+  hivelingId: number;
+}
 export type Trail = EntityBase & TrailDetails;
 
 export type Entity = EntityBase &

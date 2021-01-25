@@ -1,16 +1,15 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import { MutableRefObject, useEffect, useState, useMemo } from "react";
+import { MutableRefObject, useEffect, useState, useMemo, useRef } from "react";
 declare const require: (url: string) => string;
 
-export const useContext2D = (
-  canvasRef: MutableRefObject<HTMLCanvasElement | null>
-): CanvasRenderingContext2D | null => {
+export const useCanvas = (): [MutableRefObject<HTMLCanvasElement | null>, CanvasRenderingContext2D | null] => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   useEffect(() => {
     setCtx(canvasRef.current?.getContext("2d") ?? null);
   }, [canvasRef]);
 
-  return ctx;
+  return [canvasRef, ctx];
 };
 
 export const useAssets = (descriptors: {

@@ -1,7 +1,7 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import React, { FC, useRef, useCallback, useMemo } from "react";
+import React, { FC, useCallback, useMemo } from "react";
 
-import { useAssets, useContext2D } from "canvas/render";
+import { useAssets, useCanvas } from "canvas/render";
 import { drawImage, drawLine } from "canvas/draw";
 import { Position } from "utils";
 import { gameBorders, canvasWidth, canvasHeight } from "config";
@@ -76,8 +76,7 @@ const assetDescriptors = {
 };
 
 export const GameArea: FC<Props> = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const ctx = useContext2D(canvasRef);
+  const [canvasRef, ctx] = useCanvas();
   const assets = useAssets(assetDescriptors);
 
   const draw = useCallback(
@@ -143,7 +142,7 @@ export const GameArea: FC<Props> = () => {
             ctx,
             position: transformPositionToPixelSpace(e.position),
             angle:
-              e.type === HIVELING ? (toDeg(e.orientation) * Math.PI) / 180 : 0,
+              "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0,
             size: 1 / xScale,
             image
           });

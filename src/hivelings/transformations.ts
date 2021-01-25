@@ -1,8 +1,10 @@
-import { Rotation } from "hivelings/types/common";
+import { Rotation, EntityType } from "hivelings/types/common";
 import { Entity } from "hivelings/types/simulation";
 import { Entity as PlayerEntity } from "hivelings/types/player";
 import { Position } from "utils";
+import { base } from "./scenarios/base";
 
+const { HIVELING, TRAIL } = EntityType;
 const { NONE, CLOCKWISE, BACK, COUNTERCLOCKWISE } = Rotation;
 export const toDeg = (rotation: Rotation): number => {
   switch (rotation) {
@@ -58,15 +60,35 @@ const inverseRotatePosition = (
 };
 
 export const entityForPlayer = (orientation: Rotation, origin: Position) => (
-  e: Entity & { orientation?: Rotation }
+  e: Entity
 ): PlayerEntity => {
-  const { identifier, highlighted, position, orientation: __, ...rest } = e;
+  const { zIndex, position } = e;
 
-  return {
+  const base = {
     position: inverseRotatePosition(
       orientation,
       relativePosition(origin, position)
     ),
-    ...rest
+    zIndex
   };
+
+  switch (e.type) {
+    case HIVELING:
+      return {
+        ...base,
+        type: e.type,
+        hasNutrition: e.hasNutrition,
+        recentDecisions: e.recentDecisions,
+        memory: e.memory
+      };
+    case TRAIL:
+      return {
+        ...base,
+        type: e.type,
+        lifetime: e.lifetime,
+        orientation: addRotations(e.orientation, orientation)
+      };
+    default:
+      return { ...base, type: e.type };
+  }
 };

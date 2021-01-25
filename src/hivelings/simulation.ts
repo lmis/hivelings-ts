@@ -68,10 +68,14 @@ const addScore = (x: number, s: GameState): GameState => ({
   ...s,
   score: s.score + x
 });
-const fadeTrails = (s: GameState): GameState => ({
+const fadeTrails = (hivelingId: number, s: GameState): GameState => ({
   ...s,
   entities: s.entities
-    .map((e) => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
+    .map((e) =>
+      e.type === TRAIL && e.hivelingId === hivelingId
+        ? { ...e, lifetime: e.lifetime - 1 }
+        : e
+    )
     .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
 });
 
@@ -128,13 +132,23 @@ export const applyDecision = (
           case HIVELING:
             return originalState;
           default:
-            return updateHiveling(
-              hiveling.identifier,
+            return addEntity(
+              updateHiveling(
+                hiveling.identifier,
+                {
+                  position: targetPos,
+                  zIndex: topEntityAtTarget ? topEntityAtTarget.zIndex + 1 : 0
+                },
+                originalState
+              ),
               {
-                position: targetPos,
-                zIndex: topEntityAtTarget ? topEntityAtTarget.zIndex + 1 : 0
+                type: TRAIL,
+                lifetime: 4,
+                position: hiveling.position,
+                orientation: hiveling.orientation,
+                hivelingId: hiveling.identifier
               },
-              originalState
+              hiveling.zIndex - 1
             );
         }
       case PICKUP:
@@ -176,21 +190,14 @@ export const applyDecision = (
     }
   })();
 
-  return addEntity(
-    fadeTrails(
-      updateHiveling(
-        hiveling.identifier,
-        {
-          recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)]
-        },
-        stateAfterDecision
-      )
-    ),
-    {
-      position: hiveling.position,
-      type: TRAIL,
-      lifetime: 9
-    },
-    hiveling.zIndex - 1
+  return fadeTrails(
+    hiveling.identifier,
+    updateHiveling(
+      hiveling.identifier,
+      {
+        recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)]
+      },
+      stateAfterDecision
+    )
   );
 };
