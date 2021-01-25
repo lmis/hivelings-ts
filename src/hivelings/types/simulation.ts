@@ -46,6 +46,9 @@ export interface GameState {
   nextId: number;
   score: number;
   rngState: RngState;
+  scale: number;
+  cameraPosition: Position;
+  speed: number;
 }
 
 export const isHiveling = (e: Entity): e is Hiveling =>

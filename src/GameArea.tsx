@@ -80,13 +80,12 @@ export const GameArea: FC<Props> = () => {
   const assets = useAssets(assetDescriptors);
 
   const draw = useCallback(
-    (state: GameState) => {
+    ({ scale, cameraPosition, entities }: GameState) => {
       if (!ctx) {
         return;
       }
 
       if (background && Object.values(assets).every((x) => !!x)) {
-        const scale = 1;
         const [xScale, yScale] = [
           (gameBorders.right - gameBorders.left) / (background.width * scale),
           (gameBorders.top - gameBorders.bottom) / (background.height * scale)
@@ -101,12 +100,11 @@ export const GameArea: FC<Props> = () => {
           canvasHeight
         ]);
 
-        const position = [0, 0];
-        const [xPlayer, yPlayer] = position;
+        const [xCamera, yCamera] = cameraPosition;
 
         const [xCanvas, yCanvas] = [
-          xPlayer - viewWidth / 2,
-          yPlayer + viewHeight / 2
+          xCamera - viewWidth / 2,
+          yCamera + viewHeight / 2
         ];
 
         const transformPositionToPixelSpace = ([x, y]: Position): Position => [
@@ -121,7 +119,7 @@ export const GameArea: FC<Props> = () => {
           transformPositionToPixelSpace([gameBorders.left, gameBorders.top])
         );
 
-        sortBy((e: Entity) => e.zIndex)(state.entities).forEach((e) => {
+        sortBy((e: Entity) => e.zIndex)(entities).forEach((e) => {
           const image = (() => {
             switch (e.type) {
               case NUTRITION:
@@ -159,9 +157,7 @@ export const GameArea: FC<Props> = () => {
 
   const startingState = useMemo(() => loadStartingState(ScenarioName.BASE), []);
 
-  const game = useGameLoop(gameIteration, draw, startingState, {
-    framesPerGameStep: 10
-  });
+  const game = useGameLoop(gameIteration, draw, startingState);
 
   return (
     <>
