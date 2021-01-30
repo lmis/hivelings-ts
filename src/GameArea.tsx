@@ -2,7 +2,7 @@
 import React, { FC, useCallback, useMemo } from "react";
 
 import { useAssets, useCanvas } from "canvas/render";
-import { drawImage, drawLine } from "canvas/draw";
+import { drawImage, drawGrid } from "canvas/draw";
 import { Position } from "utils";
 import { gameBorders, canvasWidth, canvasHeight } from "config";
 import {
@@ -16,10 +16,11 @@ import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { useGameLoop } from "game/useGameLoop";
 import { EntityType } from "hivelings/types/common";
 import sortBy from "lodash/fp/sortBy";
+import range from "lodash/range";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 
-const background = { width: 800, height: 800 };
+const background = { width: canvasWidth + 200, height: canvasHeight + 200 };
 
 interface Props {}
 
@@ -31,7 +32,9 @@ const drawBackground = (
 ) => {
   ctx.save();
   ctx.fillStyle = "green";
-  ctx.fillRect(x, y, scale * background.width, scale * background.height);
+  const width = scale * background.width;
+  const height = scale * background.height;
+  ctx.fillRect(x - width / 2, y - height / 2, width, height);
   ctx.restore();
 };
 
@@ -86,9 +89,10 @@ export const GameArea: FC<Props> = () => {
       }
 
       if (background && Object.values(assets).every((x) => !!x)) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         const [xScale, yScale] = [
-          (gameBorders.right - gameBorders.left) / (background.width * scale),
-          (gameBorders.top - gameBorders.bottom) / (background.height * scale)
+          (gameBorders.right - gameBorders.left) / (canvasWidth * scale),
+          (gameBorders.top - gameBorders.bottom) / (canvasHeight * scale)
         ];
         const scalePixelsToGameSpace = ([x, y]: Position): Position => [
           x * xScale,
@@ -116,8 +120,21 @@ export const GameArea: FC<Props> = () => {
           ctx,
           background,
           scale,
-          transformPositionToPixelSpace([gameBorders.left, gameBorders.top])
+          transformPositionToPixelSpace([0, 0])
         );
+
+        drawGrid({
+          ctx,
+          width: 1 / xScale,
+          height: 1 / yScale,
+          topLeft: transformPositionToPixelSpace([
+            gameBorders.left,
+            gameBorders.top
+          ]),
+          strokeStyle: "darkgrey",
+          xCells: gameBorders.right - gameBorders.left + 1,
+          yCells: gameBorders.top - gameBorders.bottom + 1
+        });
 
         sortBy((e: Entity) => e.zIndex)(entities).forEach((e) => {
           const image = (() => {

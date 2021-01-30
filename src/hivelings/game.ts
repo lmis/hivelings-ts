@@ -11,6 +11,8 @@ import { shuffle, randomPrintable } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 import { GameIteration, PressedKeys } from "game/useGameLoop";
 import filter from "lodash/fp/filter";
+import { clamp } from "utils";
+import { gameBorders } from "config";
 
 const takeDecision = async (
   randomSeed: string,
@@ -36,14 +38,32 @@ const presses = (
 
 const handleKeyPresses = (keys: PressedKeys, state: GameState): GameState => {
   const newState = { ...state };
+  const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
+  const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
   presses(
     {
       NumpadAdd: () => (newState.scale += 0.01),
       NumpadSubtract: () => (newState.scale -= 0.01),
-      ArrowUp: () => (newState.cameraPosition[1] += 0.2),
-      ArrowDown: () => (newState.cameraPosition[1] -= 0.2),
-      ArrowRight: () => (newState.cameraPosition[0] += 0.2),
-      ArrowLeft: () => (newState.cameraPosition[0] -= 0.2),
+      ArrowUp: () =>
+        (newState.cameraPosition[1] = clamp(
+          newState.cameraPosition[1] + 0.2,
+          vBounds
+        )),
+      ArrowDown: () =>
+        (newState.cameraPosition[1] = clamp(
+          newState.cameraPosition[1] - 0.2,
+          vBounds
+        )),
+      ArrowLeft: () =>
+        (newState.cameraPosition[0] = clamp(
+          newState.cameraPosition[0] - 0.2,
+          hBounds
+        )),
+      ArrowRight: () =>
+        (newState.cameraPosition[0] = clamp(
+          newState.cameraPosition[0] + 0.2,
+          hBounds
+        )),
       Numpad1: () => (newState.speed = 1),
       Numpad2: () => (newState.speed = 2),
       Numpad3: () => (newState.speed = 3),

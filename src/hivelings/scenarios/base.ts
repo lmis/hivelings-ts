@@ -73,7 +73,7 @@ const startingState: GameState = [
   rngState: makeStdLaggedFibo("baseScenarioSeed").getState(),
   scale: 1,
   cameraPosition: [0, 0],
-  speed: 0,
+  speed: 0
 });
 
 export const base = { startingState };

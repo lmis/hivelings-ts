@@ -28,3 +28,5 @@ export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
 
 export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
   xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));
+
+export const clamp = (x: number, [xMin, xMax]: [number, number]) => Math.min(xMax, Math.max(xMin, x));

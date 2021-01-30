@@ -99,3 +99,35 @@ export const drawLine = (
   ctx.stroke();
   ctx.restore();
 };
+
+export const drawGrid = ({
+  ctx,
+  width,
+  height,
+  xCells,
+  yCells,
+  topLeft,
+  strokeStyle
+}: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  xCells: number;
+  yCells: number;
+  topLeft: Position;
+  strokeStyle: CanvasRenderingContext2D["strokeStyle"];
+}) => {
+  const xMin = topLeft[0] - width / 2;
+  const xMax = xMin + xCells * width;
+  const yMin = topLeft[1] - width / 2;
+  const yMax = yMin + yCells * height;
+
+  for (let i = 0; i <= xCells; ++i) {
+    const x = xMin + i * width;
+    drawLine(ctx, [x, yMin], [x, yMax], strokeStyle);
+  }
+  for (let i = 0; i <= yCells; ++i) {
+    const y = yMin + i * height;
+    drawLine(ctx, [xMin, y], [xMax, y], strokeStyle);
+  }
+};

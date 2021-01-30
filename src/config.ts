@@ -1,8 +1,8 @@
 export const gameBorders = {
   bottom: -16,
-  top: 17,
+  top: 16,
   left: -16,
-  right: 17
+  right: 16
 };
 
 
