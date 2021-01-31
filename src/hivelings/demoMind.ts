@@ -10,7 +10,14 @@ import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
 import { pickRandom } from "rng/utils";
 import { Position, positionEquals } from "utils";
 
-const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
+const {
+  MOVE,
+  TURN,
+  PICKUP,
+  DROP,
+  WAIT,
+  REMEMBER_128_CHARACTERS
+} = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
@@ -31,6 +38,8 @@ const front: Position = [0, 1];
 const back: Position = [0, -1];
 const left: Position = [-1, 0];
 const right: Position = [1, 0];
+const BLOCKED_FRONT = "BLOCKED_FRONT";
+const RESOLVE_DEADLOCK = "RESOLVE_DEADLOCK";
 
 const goTowards = (
   position: Position | undefined,
@@ -43,9 +52,21 @@ const goTowards = (
   }
   const rotation = positionToRotation(position);
   if (rotation === NONE) {
-    // TODO: Handle if Hiveling has been waiting for a while.
-    if (blockedPositions.includes(front)) {
-      return { type: WAIT };
+    if (blockedPositions.some((p) => positionEquals(p, front))) {
+      const numberOfBlocked = +(
+        /^BLOCKED_FRONT(\d+)/.exec(currentHiveling.memory)?.[1] ?? 0
+      );
+      // Count up blocked turns
+      if (numberOfBlocked < 4) {
+        return {
+          type: REMEMBER_128_CHARACTERS,
+          message: BLOCKED_FRONT + (numberOfBlocked + 1)
+        };
+      }
+      return {
+        type: REMEMBER_128_CHARACTERS,
+        message: RESOLVE_DEADLOCK + 4
+      };
     }
     // No need to turn. Move.
     return { type: MOVE };
@@ -71,7 +92,7 @@ const search = (
     .filter((e) => [HIVELING, OBSTACLE].includes(e.type))
     .map((e) => e.position);
   const nonBlockedSurroundingPositions = surroundingPoitions.filter(
-    (p: Position) => !blockedPositions.includes(p)
+    (p: Position) => !blockedPositions.some((bp) => positionEquals(bp, p))
   );
 
   if (targetsAround.length) {
@@ -116,6 +137,27 @@ const search = (
 export const hivelingMind = (input: Input): Decision => {
   const { closeEntities, currentHiveling, randomSeed } = input;
   const rng = makeStdLaggedFibo(randomSeed);
+  const deadlockResolutionCount = /^RESOLVE_DEADLOCK(\d+)/.exec(
+    currentHiveling.memory
+  )?.[1];
+  if (deadlockResolutionCount) {
+    const previousDecision = currentHiveling.recentDecisions[0]?.type;
+    if (previousDecision === REMEMBER_128_CHARACTERS) {
+      return {
+        type: TURN,
+        rotation: pickRandom(rng, [COUNTERCLOCKWISE, CLOCKWISE, BACK])
+      };
+    }
+    if (previousDecision === TURN) {
+      return { type: MOVE };
+    }
+    if (previousDecision === MOVE) {
+      return {
+        type: REMEMBER_128_CHARACTERS,
+        message: RESOLVE_DEADLOCK + (+deadlockResolutionCount - 1)
+      };
+    }
+  }
   if (currentHiveling.hasNutrition) {
     // Bring food home.
     return search(

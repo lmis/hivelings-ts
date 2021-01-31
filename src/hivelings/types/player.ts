@@ -10,7 +10,7 @@ export interface HivelingDetails {
   type: EntityType.HIVELING;
   hasNutrition: boolean;
   recentDecisions: Decision[];
-  memory: String;
+  memory: string;
 }
 export type Hiveling = EntityBase & HivelingDetails;
 
