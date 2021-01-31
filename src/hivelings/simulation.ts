@@ -10,10 +10,15 @@ import {
   Hiveling,
   EntityDetailsWithPosition
 } from "hivelings/types/simulation";
-import { addRotations } from "hivelings/transformations";
+import {
+  addRotations,
+  relativePosition,
+  toDeg
+} from "hivelings/transformations";
 import { distance, Position, positionEquals } from "utils";
 import maxBy from "lodash/fp/maxBy";
 import max from "lodash/fp/max";
+import { fieldOfView, sightDistance } from "config";
 
 const {
   MOVE,
@@ -26,8 +31,22 @@ const {
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
-export const sees = ({ position }: Hiveling, p: Position) =>
-  distance(position, p) < 6;
+// normalize angle to (-PI, PI]
+const normalizedRadian = (radian: number) => {
+  const positive = (2 * Math.PI + radian) % (2 * Math.PI);
+  return positive > Math.PI ? 2 * Math.PI - positive : positive;
+};
+
+export const sees = ({ position, orientation }: Hiveling, p: Position) => {
+  const [x, y] = relativePosition(position, p);
+  const angle = normalizedRadian(
+    Math.atan2(x, y) - (Math.PI * toDeg(orientation)) / 180
+  );
+  // return distance(position, p) < sightDistance;
+  return (
+    Math.abs(angle) < fieldOfView / 2 && distance(position, p) < sightDistance
+  );
+};
 
 export const addEntity = (
   { nextId, entities, ...state }: GameState,

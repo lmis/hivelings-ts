@@ -2,7 +2,6 @@ import { Rotation, EntityType } from "hivelings/types/common";
 import { Entity } from "hivelings/types/simulation";
 import { Entity as PlayerEntity } from "hivelings/types/player";
 import { Position } from "utils";
-import { base } from "./scenarios/base";
 
 const { HIVELING, TRAIL } = EntityType;
 const { NONE, CLOCKWISE, BACK, COUNTERCLOCKWISE } = Rotation;
@@ -38,10 +37,11 @@ export const addRotations = (a: Rotation, b: Rotation): Rotation => {
   return fromDeg((toDeg(a) + toDeg(b)) % 360);
 };
 
-const relativePosition = ([ox, oy]: Position, [x, y]: Position): Position => [
+export const relativePosition = ([ox, oy]: Position, [x, y]: Position): Position => [
   x - ox,
   y - oy
 ];
+
 
 const inverseRotatePosition = (
   rotation: Rotation,

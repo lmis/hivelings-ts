@@ -2,9 +2,9 @@
 import React, { FC, useCallback, useMemo } from "react";
 
 import { useAssets, useCanvas } from "canvas/render";
-import { drawImage, drawGrid } from "canvas/draw";
+import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import { Position } from "utils";
-import { gameBorders, canvasWidth, canvasHeight } from "config";
+import { gameBorders, canvasWidth, canvasHeight, fieldOfView } from "config";
 import {
   makeGameIteration,
   makeHivelingMindFromFunction
@@ -16,7 +16,7 @@ import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { useGameLoop } from "game/useGameLoop";
 import { EntityType } from "hivelings/types/common";
 import sortBy from "lodash/fp/sortBy";
-import range from "lodash/range";
+import { sees } from "hivelings/simulation";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 
@@ -36,38 +36,6 @@ const drawBackground = (
   const height = scale * background.height;
   ctx.fillRect(x - width / 2, y - height / 2, width, height);
   ctx.restore();
-};
-
-const drawEntity = ({
-  ctx,
-  position,
-  angle,
-  size,
-  image
-}: {
-  ctx: CanvasRenderingContext2D;
-  position: Position;
-  angle: number;
-  size: number;
-  image: HTMLImageElement | null;
-}) => {
-  if (!image) {
-    ctx.save();
-    ctx.fillStyle = "black";
-    ctx.fillRect(position[0] - size / 2, position[1] - size / 2, size, size);
-    ctx.restore();
-  } else {
-    drawImage({
-      ctx,
-      alpha: 1,
-      flipped: false,
-      image,
-      width: size,
-      height: size,
-      angle,
-      position
-    });
-  }
 };
 
 const assetDescriptors = {
@@ -153,14 +121,37 @@ export const GameArea: FC<Props> = () => {
                 return null;
             }
           })();
-          drawEntity({
-            ctx,
-            position: transformPositionToPixelSpace(e.position),
-            angle:
-              "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0,
-            size: 1 / xScale,
-            image
-          });
+          const [x, y] = transformPositionToPixelSpace(e.position);
+          const size = 1 / xScale;
+          const angle =
+            "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0;
+          if (e.type === HIVELING) {
+            drawCone({
+              ctx,
+              origin: [x, y],
+              angleStart: angle - fieldOfView / 2,
+              angleEnd: angle + fieldOfView / 2,
+              radius: 6 * size,
+              strokeStyle: "black"
+            });
+          }
+          if (!image) {
+            ctx.save();
+            ctx.fillStyle = "black";
+            ctx.fillRect(x - size / 2, y - size / 2, size, size);
+            ctx.restore();
+          } else {
+            drawImage({
+              ctx,
+              alpha: 1,
+              flipped: false,
+              image,
+              width: size,
+              height: size,
+              angle,
+              position: [x, y]
+            });
+          }
         });
       }
     },
