@@ -1,37 +1,18 @@
 {
-  "name": "react",
+  "name": "hivelings",
   "version": "1.0.0",
   "description": "hivelings",
-  "keywords": [
-    "react",
-    "hivelings"
-  ],
-  "main": "src/index.tsx",
+  "keywords": ["hivelings"],
+  "main": "src/index.ts",
   "dependencies": {
     "@types/lodash": "4.14.165",
-    "@types/seedrandom": "2.4.28",
-    "antd": "4.9.1",
-    "lodash": "4.17.20",
-    "react": "17.0.1",
-    "react-dom": "17.0.0",
-    "react-scripts": "3.4.3",
-    "seedrandom": "3.0.5"
+    "lodash": "4.17.20"
   },
   "devDependencies": {
-    "@types/react": "16.9.19",
-    "@types/react-dom": "16.9.5",
     "typescript": "3.8.3"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "start": "npm start"
   },
-  "browserslist": [
-    ">0.2%",
-    "not dead",
-    "not ie <= 11",
-    "not op_mini all"
-  ]
+  "browserslist": [">0.2%", "not dead", "not ie <= 11", "not op_mini all"]
 }
