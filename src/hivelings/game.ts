@@ -9,7 +9,7 @@ import { entityForPlayer } from "hivelings/transformations";
 import { applyDecision, sees } from "hivelings/simulation";
 import { shuffle, randomPrintable } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
-import { GameIteration, PressedKeys } from "game/useGameLoop";
+import { GameIteration, PressedKeys } from "game/gameLoop";
 import filter from "lodash/fp/filter";
 import { clamp } from "utils";
 import { gameBorders } from "config";
@@ -40,10 +40,11 @@ const handleKeyPresses = (keys: PressedKeys, state: GameState): GameState => {
   const newState = { ...state };
   const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
   const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
+  // TODO: This cannot handle Shift-1 = +
   presses(
     {
-      NumpadAdd: () => (newState.scale += 0.01),
-      NumpadSubtract: () => (newState.scale -= 0.01),
+      NumpadAdd: () => (newState.scale += 0.4),
+      NumpadSubtract: () => (newState.scale -= 0.4),
       ArrowUp: () =>
         (newState.cameraPosition[1] = clamp(
           newState.cameraPosition[1] + 0.2,
