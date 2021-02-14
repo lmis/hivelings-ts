@@ -16,8 +16,7 @@ import {
   toDeg
 } from "hivelings/transformations";
 import { distance, Position, positionEquals } from "utils";
-import maxBy from "lodash/fp/maxBy";
-import max from "lodash/fp/max";
+import { max, maxBy } from "utils";
 import { fieldOfView, sightDistance } from "config";
 
 const {
@@ -116,7 +115,8 @@ export const applyDecision = (
     }
   })();
 
-  const topEntityAtTarget = maxBy((e: Entity) => e.zIndex)(
+  const topEntityAtTarget = maxBy(
+    (e: Entity) => e.zIndex,
     originalState.entities.filter(
       (e) =>
         positionEquals(e.position, targetPos) &&

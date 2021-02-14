@@ -10,7 +10,6 @@ import { applyDecision, sees } from "hivelings/simulation";
 import { shuffle, randomPrintable } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 import { GameIteration, PressedKeys } from "game/gameLoop";
-import filter from "lodash/fp/filter";
 import { clamp } from "utils";
 import { gameBorders } from "config";
 
@@ -111,7 +110,7 @@ export const makeGameIteration = (
   }
   const { rngState, entities } = state;
   const rng = loadLaggedFibo(rngState);
-  const shuffledHivelings = shuffle(rng, filter(isHiveling)(entities));
+  const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
   // The player code need not be able to run in parallel, so we sequence here
   // instead of Promise.all.

@@ -26,7 +26,31 @@ export const distance = (a: Position, b: Position): number =>
 export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
   xa === ya && xb === yb;
 
+export const range = (lower: number, upper: number) =>
+  Array.from({ length: upper - lower }, (_, i) => i + lower);
+
 export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
   xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));
 
-export const clamp = (x: number, [xMin, xMax]: [number, number]) => Math.min(xMax, Math.max(xMin, x));
+export const clamp = (x: number, [xMin, xMax]: [number, number]) =>
+  Math.min(xMax, Math.max(xMin, x));
+
+export const maxBy = <T>(value: (x: T) => number, xs: T[]): T | null =>
+  xs.reduce(
+    (acc: [T | null, number], x: T): [T | null, number] => {
+      const v = value(x);
+      if (acc === null || acc[1] < v) {
+        return [x, v];
+      }
+      return acc;
+    },
+    [null, -Infinity]
+  )?.[0] ?? null;
+
+export const max = (xs: number[]): number | null => maxBy((x) => x, xs);
+
+export const sortBy = <T>(value: (x: T) => number, xs: T[]): any[] =>
+  xs
+    .map((x) => [x, value(x)] as [T, number])
+    .sort((a, b) => a[1] - b[1])
+    .map(([x]) => x);

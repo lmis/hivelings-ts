@@ -1,6 +1,6 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
-import { Position } from "utils";
+import { Position, sortBy } from "utils";
 import { gameBorders, fieldOfView } from "config";
 import {
   makeGameIteration,
@@ -11,7 +11,6 @@ import { GameState, Entity } from "hivelings/types/simulation";
 import { toDeg } from "hivelings/transformations";
 import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { EntityType } from "hivelings/types/common";
-import sortBy from "lodash/fp/sortBy";
 import { loadAssets } from "canvas/render";
 import { gameLoop } from "game/gameLoop";
 
@@ -99,7 +98,7 @@ const main = async () => {
       yCells: gameBorders.top - gameBorders.bottom + 1
     });
 
-    sortBy((e: Entity) => e.zIndex)(entities).forEach((e) => {
+    sortBy((e: Entity) => e.zIndex, entities).forEach((e) => {
       const image = (() => {
         switch (e.type) {
           case NUTRITION:

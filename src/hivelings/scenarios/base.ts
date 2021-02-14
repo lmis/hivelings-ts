@@ -5,8 +5,7 @@ import {
 } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
-import { range } from "lodash";
-import { crossProduct, Position } from "utils";
+import { crossProduct, Position, range } from "utils";
 
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
 
@@ -25,7 +24,7 @@ const startingTopAndBottom = crossProduct(range(-9, 10), [
 const startingSides = crossProduct([-10, 10], range(-16, 17)) as Position[];
 const startingNutrition = crossProduct(range(-5, 6), [
   -15,
-  14,
+  -14,
   0,
   14,
   15
