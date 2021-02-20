@@ -9,7 +9,6 @@ import { Position } from "utils";
 
 export interface EntityBase extends PlayerEntityBase {
   identifier: number;
-  highlighted: boolean;
 }
 
 export interface HivelingDetails extends PlayerHivelingDetails {

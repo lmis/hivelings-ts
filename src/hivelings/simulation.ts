@@ -57,7 +57,6 @@ export const addEntity = (
     ...entities,
     {
       ...entity,
-      highlighted: false,
       identifier: nextId,
       zIndex: Math.min(
         zMax,

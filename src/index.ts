@@ -1,18 +1,62 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
-import { Position, sortBy, clamp, hasAll } from "utils";
+import { Position, sortBy, clamp, hasAll, distance } from "utils";
 import { gameBorders, fieldOfView } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
-import { Entity, SimulationState } from "hivelings/types/simulation";
+import { Entity, Hiveling, SimulationState } from "hivelings/types/simulation";
 import { hivelingMind } from "hivelings/demoMind";
 import { toDeg } from "hivelings/transformations";
-import { EntityType, Input } from "hivelings/types/common";
+import {
+  EntityType,
+  Input,
+  Decision,
+  Rotation,
+  DecisionType
+} from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
+import { Trail } from "hivelings/types/player";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
 const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
+
+const prettyPrintDecision = (d: Decision) => {
+  switch (d.type) {
+    case DecisionType.TURN:
+      return `${d.type}(${d.rotation})`;
+    case DecisionType.REMEMBER_128_CHARACTERS:
+      return `${d.type}(${d.message})`;
+    default:
+      return d.type;
+  }
+};
+
+const prettyPrintEntity = (e: Entity): string => {
+  const common = `${e.type}[${e.position[0]},${e.position[1]}]\n  identifier: ${e.identifier}\n  zIndex: ${e.zIndex}`;
+  switch (e.type) {
+    case HIVELING:
+      const hivelingProps: (keyof Hiveling)[] = [
+        "hasNutrition",
+        "orientation",
+        "memory"
+      ];
+      return (
+        common +
+        "\n" +
+        hivelingProps.map((k) => `  ${k}: ${e[k]}`).join("\n") +
+        "\n  recentDecisions: \n" +
+        e.recentDecisions.map((d) => "    " + prettyPrintDecision(d)).join("\n")
+      );
+    case TRAIL:
+      const trailProps: (keyof Trail)[] = ["orientation", "lifetime"];
+      return (
+        common + "\n" + trailProps.map((k) => `  ${k}: ${e[k]}`).join("\n")
+      );
+    default:
+      return common;
+  }
+};
 
 export interface GameState {
   simulationState: SimulationState;
@@ -91,14 +135,75 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const render = ({
-    scale,
-    cameraPosition,
-    simulationState,
-    showVision,
-    showGrid
-  }: GameState) => {
-    const { entities } = simulationState;
+  let state: GameState = {
+    simulationState: loadStartingState(ScenarioName.BASE),
+    scale: 20,
+    cameraPosition: [0, 0],
+    speed: 0,
+    showVision: false,
+    showGrid: true,
+    quitting: false
+  };
+  let frameNumber: number | null = null;
+  const heldKeys = new Set<string>();
+  const releasedKeys = new Set<string>();
+  const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.key);
+  const onKeyUp = (e: KeyboardEvent) => {
+    heldKeys.delete(e.key);
+    releasedKeys.add(e.key);
+  };
+
+  const mouse = {
+    position: null as Position | null,
+    clicking: false,
+    released: false
+  };
+  const onMouseDown = (e: MouseEvent) => {
+    mouse.clicking = true;
+  };
+  const onMouseUp = (e: MouseEvent) => {
+    mouse.clicking = false;
+    mouse.released = true;
+  };
+  const onMouseMove = (e: MouseEvent) => {
+    mouse.position = [e.clientX, e.clientY];
+  };
+
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+
+  const handleFrame = async () => {
+    if (state.quitting) {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      return;
+    }
+
+    handleKeyPresses(heldKeys, releasedKeys, state);
+
+    if (
+      releasedKeys.has("Enter") ||
+      shouldAdvance(state.speed, frameNumber ?? 0)
+    ) {
+      state.simulationState = await advanceSimulation(
+        async (i: Input) => hivelingMind(i),
+        state.simulationState
+      );
+    }
+
+    const {
+      scale,
+      cameraPosition,
+      simulationState: { entities },
+      showVision,
+      showGrid
+    } = state;
     const canvasWidth = window.innerWidth;
     const canvasHeight = window.innerHeight;
     canvas.width = canvasWidth;
@@ -127,6 +232,10 @@ const main = async () => {
     const transformPositionToPixelSpace = ([x, y]: Position): Position => [
       (x - xCanvas) * scale,
       (yCanvas - y) * scale
+    ];
+    const transformPositionToGameSpace = ([x, y]: Position): Position => [
+      x / scale + xCanvas,
+      -y / scale + yCanvas
     ];
 
     drawBackground(
@@ -200,52 +309,44 @@ const main = async () => {
         });
       }
     });
-  };
 
-  let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.BASE),
-    scale: 20,
-    cameraPosition: [0, 0],
-    speed: 0,
-    showVision: false,
-    showGrid: true,
-    quitting: false
-  };
-  let frameNumber: number | null = null;
-  const heldKeys = new Set<string>();
-  const releasedKeys = new Set<string>();
+    const mousePosition =
+      mouse.position && transformPositionToGameSpace(mouse.position);
 
-  const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.key);
-  const onKeyUp = (e: KeyboardEvent) => {
-    heldKeys.delete(e.key);
-    releasedKeys.add(e.key);
-    console.log(e.key);
-  };
-
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
-
-  const handleFrame = async () => {
-    if (state.quitting) {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      return;
-    }
-
-    handleKeyPresses(heldKeys, releasedKeys, state);
-
-    if (
-      releasedKeys.has("Enter") ||
-      shouldAdvance(state.speed, frameNumber ?? 0)
-    ) {
-      state.simulationState = await advanceSimulation(
-        async (i: Input) => hivelingMind(i),
-        state.simulationState
+    if (mousePosition) {
+      const highlighed = entities.filter(
+        (e) => distance(e.position, mousePosition) < 0.5
       );
-    }
-    releasedKeys.clear();
-    render(state);
+      if (highlighed.length > 0) {
+        const [x, y] = transformPositionToPixelSpace(highlighed[0].position);
+        const lines = prettyPrintEntity(highlighed[0]).split("\n");
+        const lineheight = 15;
+        const font = `${lineheight}px Georgia`;
+        const yPadding = 10;
+        const yOffset = lineheight * lines.length;
+        const height = yOffset + yPadding;
+        const width =
+          7 * Math.min(240, Math.max(...lines.map((l) => l.length)));
 
+        ctx.fillStyle = "black";
+        ctx.fillRect(x - width / 2, y - height / 2 - yOffset, width, height);
+        ctx.save();
+        ctx.fillStyle = "white";
+        ctx.font = font;
+        lines.forEach((text, i) => {
+          ctx.fillText(
+            text,
+            x - width / 2,
+            y - height / 2 - yOffset + (i + 1) * lineheight,
+            width
+          );
+        });
+        ctx.restore();
+      }
+    }
+
+    releasedKeys.clear();
+    mouse.released = false;
     frameNumber = requestAnimationFrame(handleFrame);
   };
   handleFrame();
