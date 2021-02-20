@@ -2,16 +2,12 @@
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import { Position, sortBy } from "utils";
 import { gameBorders, fieldOfView } from "config";
-import {
-  makeGameIteration,
-  makeHivelingMindFromFunction
-} from "hivelings/game";
+import { gameIteration } from "hivelings/game";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import { GameState, Entity } from "hivelings/types/simulation";
 import { toDeg } from "hivelings/transformations";
-import { hivelingMind as demoMind } from "hivelings/demoMind";
 import { EntityType } from "hivelings/types/common";
-import { loadAssets } from "canvas/render";
+import { loadAssets } from "canvas/assets";
 import { gameLoop } from "game/gameLoop";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
@@ -149,9 +145,6 @@ const main = async () => {
     });
   };
 
-  const gameIteration = makeGameIteration(
-    makeHivelingMindFromFunction(demoMind)
-  );
   const startingState = loadStartingState(ScenarioName.BASE);
 
   gameLoop(gameIteration, render, startingState);
