@@ -13,6 +13,7 @@ import {
 import {
   addRotations,
   relativePosition,
+  normalizeRadian,
   toDeg
 } from "hivelings/transformations";
 import { distance, Position, positionEquals } from "utils";
@@ -30,18 +31,11 @@ const {
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
-// normalize angle to (-PI, PI]
-const normalizedRadian = (radian: number) => {
-  const positive = (2 * Math.PI + radian) % (2 * Math.PI);
-  return positive > Math.PI ? 2 * Math.PI - positive : positive;
-};
-
 export const sees = ({ position, orientation }: Hiveling, p: Position) => {
   const [x, y] = relativePosition(position, p);
-  const angle = normalizedRadian(
+  const angle = normalizeRadian(
     Math.atan2(x, y) - (Math.PI * toDeg(orientation)) / 180
   );
-  // return distance(position, p) < sightDistance;
   return (
     Math.abs(angle) < fieldOfView / 2 && distance(position, p) < sightDistance
   );

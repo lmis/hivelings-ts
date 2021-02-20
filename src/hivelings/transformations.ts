@@ -5,6 +5,13 @@ import { Position } from "utils";
 
 const { HIVELING, TRAIL } = EntityType;
 const { NONE, CLOCKWISE, BACK, COUNTERCLOCKWISE } = Rotation;
+
+// normalize angle to (-PI, PI]
+export const normalizeRadian = (radian: number) => {
+  const positive = (2 * Math.PI + radian) % (2 * Math.PI);
+  return positive > Math.PI ? 2 * Math.PI - positive : positive;
+};
+
 export const toDeg = (rotation: Rotation): number => {
   switch (rotation) {
     case NONE:

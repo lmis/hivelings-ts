@@ -1,34 +1,13 @@
 import { HivelingMind, Decision, Input } from "hivelings/types/common";
-import {
-  GameState,
-  Entity,
-  isHiveling,
-  Hiveling
-} from "hivelings/types/simulation";
+import { GameState, isHiveling, Hiveling } from "hivelings/types/simulation";
 import { entityForPlayer } from "hivelings/transformations";
 import { applyDecision, sees } from "hivelings/simulation";
+import { hivelingMind } from "hivelings/demoMind";
 import { shuffle, randomPrintable } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
-import { GameIteration, PressedKeys } from "game/gameLoop";
+import { PressedKeys } from "game/gameLoop";
 import { clamp } from "utils";
 import { gameBorders } from "config";
-
-const takeDecision = async (
-  randomSeed: string,
-  entities: Entity[],
-  hivelingMind: HivelingMind,
-  hiveling: Hiveling
-): Promise<[Decision, Hiveling]> => {
-  const { position, orientation, identifier, highlighted, ...rest } = hiveling;
-  const input: Input = {
-    closeEntities: entities
-      .filter((e) => e.identifier !== identifier && sees(hiveling, e.position))
-      .map(entityForPlayer(orientation, position)),
-    currentHiveling: { ...rest, position: [0, 0] },
-    randomSeed
-  };
-  return [await hivelingMind(input), hiveling];
-};
 
 const presses = (
   actions: { [key: string]: () => void },
@@ -96,18 +75,10 @@ const getFramesPerStep = ({ speed }: GameState): number | null => {
   }
 };
 
-export const makeGameIteration = (
-  hivelingMind: HivelingMind
-): GameIteration<GameState> => async (
-  frameNumber: number,
-  keys: PressedKeys,
-  inputState: GameState
+export const advanceSimulation = async (
+  hivelingMind: HivelingMind,
+  state: GameState
 ) => {
-  const state = handleKeyPresses(keys, inputState);
-  const framesPerStep = getFramesPerStep(state);
-  if (!framesPerStep || frameNumber % framesPerStep !== 0) {
-    return state;
-  }
   const { rngState, entities } = state;
   const rng = loadLaggedFibo(rngState);
   const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
@@ -116,14 +87,27 @@ export const makeGameIteration = (
   // instead of Promise.all.
   const decisionsWithMetadata: [Decision, Hiveling][] = [];
   for (const hiveling of shuffledHivelings) {
-    decisionsWithMetadata.push(
-      await takeDecision(
-        randomPrintable(rng, rngState.sequence.length),
-        entities,
-        hivelingMind,
-        hiveling
-      )
-    );
+    const {
+      position,
+      orientation,
+      identifier,
+      highlighted,
+      ...rest
+    } = hiveling;
+    const input: Input = {
+      closeEntities: entities
+        .filter(
+          (e) => e.identifier !== identifier && sees(hiveling, e.position)
+        )
+        .map(entityForPlayer(orientation, position)),
+      currentHiveling: { ...rest, position: [0, 0] },
+      randomSeed: randomPrintable(rng, rngState.sequence.length)
+    };
+    const decision: [Decision, Hiveling] = [
+      await hivelingMind(input),
+      hiveling
+    ];
+    decisionsWithMetadata.push(decision);
   }
 
   return decisionsWithMetadata.reduce(applyDecision, {
@@ -133,6 +117,15 @@ export const makeGameIteration = (
   });
 };
 
-export const makeHivelingMindFromFunction = (
-  f: (input: Input) => Decision
-): HivelingMind => async (input: Input) => f(input);
+export const gameIteration = async (
+  frameNumber: number,
+  keys: PressedKeys,
+  inputState: GameState
+) => {
+  const state = handleKeyPresses(keys, inputState);
+  const framesPerStep = getFramesPerStep(state);
+  if (!framesPerStep || frameNumber % framesPerStep !== 0) {
+    return state;
+  }
+  return advanceSimulation(async (i: Input) => hivelingMind(i), state);
+};
