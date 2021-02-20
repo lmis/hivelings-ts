@@ -1,5 +1,5 @@
 import { EntityType, Rotation } from "hivelings/types/common";
-import { EntityDetailsWithPosition } from "hivelings/types/simulation";
+import { EntityDetailsWithPosition, SimulationState } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";

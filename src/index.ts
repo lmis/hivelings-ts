@@ -1,6 +1,6 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
-import { Position, sortBy, clamp } from "utils";
+import { Position, sortBy, clamp, hasAll } from "utils";
 import { gameBorders, fieldOfView } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
@@ -11,6 +11,8 @@ import { EntityType, Input } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
+const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
+const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
 
 export interface GameState {
   simulationState: SimulationState;
@@ -34,70 +36,38 @@ const drawBackground = (
   ctx.restore();
 };
 
-const presses = (
-  actions: { [key: string]: () => void },
-  keys: Set<string>
-): void => [...keys].forEach((k) => actions[k]?.());
-
 const handleKeyPresses = (
   held: Set<string>,
   released: Set<string>,
   state: GameState
 ) => {
-  const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
-  const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
-  // TODO: This cannot handle Shift-1 = +
-  presses(
-    {
-      NumpadAdd: () => (state.scale += 0.4),
-      NumpadSubtract: () => (state.scale -= 0.4),
-      ArrowUp: () =>
-        (state.cameraPosition[1] = clamp(
-          state.cameraPosition[1] + 0.2,
-          vBounds
-        )),
-      ArrowDown: () =>
-        (state.cameraPosition[1] = clamp(
-          state.cameraPosition[1] - 0.2,
-          vBounds
-        )),
-      ArrowLeft: () =>
-        (state.cameraPosition[0] = clamp(
-          state.cameraPosition[0] - 0.2,
-          hBounds
-        )),
-      ArrowRight: () =>
-        (state.cameraPosition[0] = clamp(
-          state.cameraPosition[0] + 0.2,
-          hBounds
-        )),
-      Numpad1: () => (state.speed = 1),
-      Numpad2: () => (state.speed = 2),
-      Numpad3: () => (state.speed = 3),
-      Digit1: () => (state.speed = 1),
-      Digit2: () => (state.speed = 2),
-      Digit3: () => (state.speed = 3)
-    },
-    held
-  );
-  presses(
-    {
-      Space: () => (state.speed = state.speed === 0 ? 1 : -state.speed)
-    },
-    released
-  );
+  if (held.has("Add") || hasAll(held, ["Shift", "ArrowUp"])) state.scale += 0.4;
+  if (held.has("Subtract") || hasAll(held, ["Shift", "ArrowDown"]))
+    state.scale -= 0.4;
+  if (held.has("ArrowUp"))
+    state.cameraPosition[1] = clamp(state.cameraPosition[1] + 0.2, vBounds);
+  if (held.has("ArrowDown"))
+    state.cameraPosition[1] = clamp(state.cameraPosition[1] - 0.2, vBounds);
+  if (held.has("ArrowLeft"))
+    state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
+  if (held.has("ArrowRight"))
+    state.cameraPosition[0] = clamp(state.cameraPosition[0] + 0.2, hBounds);
+  if (held.has("1")) state.speed = 1;
+  if (held.has("2")) state.speed = 2;
+  if (held.has("3")) state.speed = 3;
+  if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
 };
 
-const getFramesPerStep = (speed: number): number | null => {
+const shouldAdvance = (speed: number, frameNumber: number): boolean => {
   switch (speed) {
     case 1:
-      return 20;
+      return frameNumber % 20 === 0;
     case 2:
-      return 10;
+      return frameNumber % 10 === 0;
     case 3:
-      return 5;
+      return frameNumber % 5 === 0;
     default:
-      return null;
+      return false;
   }
 };
 const assetDescriptors = {
@@ -231,11 +201,13 @@ const main = async () => {
   const heldKeys = new Set<string>();
   const releasedKeys = new Set<string>();
 
-  const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.code);
+  const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.key);
   const onKeyUp = (e: KeyboardEvent) => {
-    heldKeys.delete(e.code);
-    releasedKeys.add(e.code);
+    heldKeys.delete(e.key);
+    releasedKeys.add(e.key);
+    console.log(e.key);
   };
+
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
 
@@ -247,15 +219,17 @@ const main = async () => {
     }
 
     handleKeyPresses(heldKeys, releasedKeys, state);
-    releasedKeys.clear();
 
-    const framesPerStep = getFramesPerStep(state.speed);
-    if (framesPerStep && (frameNumber ?? 0) % framesPerStep === 0) {
+    if (
+      releasedKeys.has("Enter") ||
+      shouldAdvance(state.speed, frameNumber ?? 0)
+    ) {
       state.simulationState = await advanceSimulation(
         async (i: Input) => hivelingMind(i),
         state.simulationState
       );
     }
+    releasedKeys.clear();
     render(state);
 
     frameNumber = requestAnimationFrame(handleFrame);

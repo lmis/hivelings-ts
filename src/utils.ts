@@ -54,3 +54,6 @@ export const sortBy = <T>(value: (x: T) => number, xs: T[]): any[] =>
     .map((x) => [x, value(x)] as [T, number])
     .sort((a, b) => a[1] - b[1])
     .map(([x]) => x);
+
+export const hasAll = <T>(set: Set<T>, values: T[]) =>
+  values.every((v) => set.has(v));
