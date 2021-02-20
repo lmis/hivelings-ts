@@ -2,22 +2,27 @@ import {
   Decision,
   DecisionType,
   Rotation,
-  EntityType
+  EntityType,
+  HivelingMind,
+  Input
 } from "hivelings/types/common";
 import {
-  GameState,
   Entity,
   Hiveling,
-  EntityDetailsWithPosition
+  EntityDetailsWithPosition,
+  SimulationState,
+  isHiveling
 } from "hivelings/types/simulation";
 import {
   addRotations,
   relativePosition,
   normalizeRadian,
-  toDeg
+  toDeg,
+  entityForPlayer
 } from "hivelings/transformations";
-import { distance, Position, positionEquals } from "utils";
-import { max, maxBy } from "utils";
+import { max, maxBy, distance, Position, positionEquals } from "utils";
+import { loadLaggedFibo } from "rng/laggedFibo";
+import { randomPrintable, shuffle } from "rng/utils";
 import { fieldOfView, sightDistance } from "config";
 
 const {
@@ -42,10 +47,10 @@ export const sees = ({ position, orientation }: Hiveling, p: Position) => {
 };
 
 export const addEntity = (
-  { nextId, entities, ...state }: GameState,
+  { nextId, entities, ...state }: SimulationState,
   entity: EntityDetailsWithPosition,
   zMax: number = Infinity
-): GameState => ({
+): SimulationState => ({
   ...state,
   nextId: nextId + 1,
   entities: [
@@ -69,18 +74,21 @@ export const addEntity = (
 const updateHiveling = (
   id: number,
   u: Partial<Hiveling>,
-  s: GameState
-): GameState => ({
+  s: SimulationState
+): SimulationState => ({
   ...s,
   entities: s.entities.map((e) =>
     e.identifier === id && e.type === HIVELING ? { ...e, ...u } : e
   )
 });
-const addScore = (x: number, s: GameState): GameState => ({
+const addScore = (x: number, s: SimulationState): SimulationState => ({
   ...s,
   score: s.score + x
 });
-const fadeTrails = (hivelingId: number, s: GameState): GameState => ({
+const fadeTrails = (
+  hivelingId: number,
+  s: SimulationState
+): SimulationState => ({
   ...s,
   entities: s.entities
     .map((e) =>
@@ -92,9 +100,9 @@ const fadeTrails = (hivelingId: number, s: GameState): GameState => ({
 });
 
 export const applyDecision = (
-  originalState: GameState,
+  originalState: SimulationState,
   [decision, hiveling]: [Decision, Hiveling]
-): GameState => {
+): SimulationState => {
   const targetPos = ((): Position => {
     const [x, y] = hiveling.position;
     switch (hiveling.orientation) {
@@ -213,4 +221,46 @@ export const applyDecision = (
       stateAfterDecision
     )
   );
+};
+
+export const advanceSimulation = async (
+  hivelingMind: HivelingMind,
+  state: SimulationState
+) => {
+  const { rngState, entities } = state;
+  const rng = loadLaggedFibo(rngState);
+  const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
+
+  // The player code need not be able to run in parallel, so we sequence here
+  // instead of Promise.all.
+  const decisionsWithMetadata: [Decision, Hiveling][] = [];
+  for (const hiveling of shuffledHivelings) {
+    const {
+      position,
+      orientation,
+      identifier,
+      highlighted,
+      ...rest
+    } = hiveling;
+    const input: Input = {
+      closeEntities: entities
+        .filter(
+          (e) => e.identifier !== identifier && sees(hiveling, e.position)
+        )
+        .map(entityForPlayer(orientation, position)),
+      currentHiveling: { ...rest, position: [0, 0] },
+      randomSeed: randomPrintable(rng, rngState.sequence.length)
+    };
+    const decision: [Decision, Hiveling] = [
+      await hivelingMind(input),
+      hiveling
+    ];
+    decisionsWithMetadata.push(decision);
+  }
+
+  return decisionsWithMetadata.reduce(applyDecision, {
+    ...state,
+    entities,
+    rngState: rng.getState()
+  });
 };

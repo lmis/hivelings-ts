@@ -1,16 +1,24 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
-import { Position, sortBy } from "utils";
+import { Position, sortBy, clamp } from "utils";
 import { gameBorders, fieldOfView } from "config";
-import { gameIteration } from "hivelings/game";
+import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
-import { GameState, Entity } from "hivelings/types/simulation";
+import { Entity, SimulationState } from "hivelings/types/simulation";
+import { hivelingMind } from "hivelings/demoMind";
 import { toDeg } from "hivelings/transformations";
-import { EntityType } from "hivelings/types/common";
+import { EntityType, Input } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
-import { gameLoop } from "game/gameLoop";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
+
+export interface GameState {
+  simulationState: SimulationState;
+  scale: number;
+  cameraPosition: Position;
+  speed: number;
+  quitting: boolean;
+}
 
 const drawBackground = (
   ctx: CanvasRenderingContext2D,
@@ -26,6 +34,72 @@ const drawBackground = (
   ctx.restore();
 };
 
+const presses = (
+  actions: { [key: string]: () => void },
+  keys: Set<string>
+): void => [...keys].forEach((k) => actions[k]?.());
+
+const handleKeyPresses = (
+  held: Set<string>,
+  released: Set<string>,
+  state: GameState
+) => {
+  const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
+  const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
+  // TODO: This cannot handle Shift-1 = +
+  presses(
+    {
+      NumpadAdd: () => (state.scale += 0.4),
+      NumpadSubtract: () => (state.scale -= 0.4),
+      ArrowUp: () =>
+        (state.cameraPosition[1] = clamp(
+          state.cameraPosition[1] + 0.2,
+          vBounds
+        )),
+      ArrowDown: () =>
+        (state.cameraPosition[1] = clamp(
+          state.cameraPosition[1] - 0.2,
+          vBounds
+        )),
+      ArrowLeft: () =>
+        (state.cameraPosition[0] = clamp(
+          state.cameraPosition[0] - 0.2,
+          hBounds
+        )),
+      ArrowRight: () =>
+        (state.cameraPosition[0] = clamp(
+          state.cameraPosition[0] + 0.2,
+          hBounds
+        )),
+      Numpad1: () => (state.speed = 1),
+      Numpad2: () => (state.speed = 2),
+      Numpad3: () => (state.speed = 3),
+      Digit1: () => (state.speed = 1),
+      Digit2: () => (state.speed = 2),
+      Digit3: () => (state.speed = 3)
+    },
+    held
+  );
+  presses(
+    {
+      Space: () => (state.speed = state.speed === 0 ? 1 : -state.speed)
+    },
+    released
+  );
+};
+
+const getFramesPerStep = (speed: number): number | null => {
+  switch (speed) {
+    case 1:
+      return 20;
+    case 2:
+      return 10;
+    case 3:
+      return 5;
+    default:
+      return null;
+  }
+};
 const assetDescriptors = {
   hiveling: "Hiveling_iteration2.png",
   hivelingWithNutrition: "Hiveling_strawberry.png",
@@ -43,7 +117,8 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const render = ({ scale, cameraPosition, entities }: GameState) => {
+  const render = ({ scale, cameraPosition, simulationState }: GameState) => {
+    const { entities } = simulationState;
     const canvasWidth = window.innerWidth;
     const canvasHeight = window.innerHeight;
     canvas.width = canvasWidth;
@@ -145,8 +220,47 @@ const main = async () => {
     });
   };
 
-  const startingState = loadStartingState(ScenarioName.BASE);
+  let state: GameState = {
+    simulationState: loadStartingState(ScenarioName.BASE),
+    scale: 20,
+    cameraPosition: [0, 0],
+    speed: 0,
+    quitting: false
+  };
+  let frameNumber: number | null = null;
+  const heldKeys = new Set<string>();
+  const releasedKeys = new Set<string>();
 
-  gameLoop(gameIteration, render, startingState);
+  const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.code);
+  const onKeyUp = (e: KeyboardEvent) => {
+    heldKeys.delete(e.code);
+    releasedKeys.add(e.code);
+  };
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+
+  const handleFrame = async () => {
+    if (state.quitting) {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      return;
+    }
+
+    handleKeyPresses(heldKeys, releasedKeys, state);
+    releasedKeys.clear();
+
+    const framesPerStep = getFramesPerStep(state.speed);
+    if (framesPerStep && (frameNumber ?? 0) % framesPerStep === 0) {
+      state.simulationState = await advanceSimulation(
+        async (i: Input) => hivelingMind(i),
+        state.simulationState
+      );
+    }
+    render(state);
+
+    frameNumber = requestAnimationFrame(handleFrame);
+  };
+  handleFrame();
 };
+
 main();
