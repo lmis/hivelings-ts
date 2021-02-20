@@ -1,6 +1,15 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
-import { Position, sortBy, clamp, hasAll, distance } from "utils";
+import {
+  Position,
+  sortBy,
+  clamp,
+  hasAll,
+  distance,
+  uniqueBy,
+  groupBy,
+  positionEquals
+} from "utils";
 import { gameBorders, fieldOfView } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
@@ -65,6 +74,7 @@ export interface GameState {
   speed: number;
   showVision: boolean;
   showGrid: boolean;
+  highlighted: Set<number>;
   quitting: boolean;
 }
 
@@ -142,6 +152,7 @@ const main = async () => {
     speed: 0,
     showVision: false,
     showGrid: true,
+    highlighted: new Set(),
     quitting: false
   };
   let frameNumber: number | null = null;
@@ -314,19 +325,42 @@ const main = async () => {
       mouse.position && transformPositionToGameSpace(mouse.position);
 
     if (mousePosition) {
-      const highlighed = entities.filter(
+      const underCursor = entities.filter(
         (e) => distance(e.position, mousePosition) < 0.5
       );
-      if (highlighed.length > 0) {
-        const [x, y] = transformPositionToPixelSpace(highlighed[0].position);
-        const lines = highlighed.map(prettyPrintEntity).join("\n").split("\n");
-        const lineheight = 15;
+      if (mouse.clicking) {
+        if (underCursor.length === 0) {
+          state.highlighted.clear();
+        } else {
+          underCursor.map((e) => state.highlighted.add(e.identifier));
+        }
+      }
+
+      const highlighedPositions = uniqueBy(
+        (p) => p.join(","),
+        [
+          ...underCursor,
+          ...entities.filter((e) => state.highlighted.has(e.identifier))
+        ].map((e) => e.position)
+      );
+
+      highlighedPositions.forEach((position) => {
+        const [x, y] = transformPositionToPixelSpace(position);
+        const lines = sortBy(
+          (e) => -e.zIndex,
+          entities.filter((e) => positionEquals(e.position, position))
+        )
+          .map(prettyPrintEntity)
+          .join("\n")
+          .split("\n");
+        const lineheight = 18;
         const font = `${lineheight}px Georgia`;
         const yPadding = 10;
         const yOffset = lineheight * lines.length;
         const height = yOffset + yPadding;
         const width =
-          7 * Math.min(240, Math.max(...lines.map((l) => l.length)));
+          (lineheight / 2) *
+          Math.min(240, Math.max(...lines.map((l) => l.length)));
 
         ctx.fillStyle = "black";
         ctx.fillRect(x - width / 2, y - height / 2 - yOffset, width, height);
@@ -342,7 +376,7 @@ const main = async () => {
           );
         });
         ctx.restore();
-      }
+      });
     }
 
     releasedKeys.clear();

@@ -49,11 +49,37 @@ export const maxBy = <T>(value: (x: T) => number, xs: T[]): T | null =>
 
 export const max = (xs: number[]): number | null => maxBy((x) => x, xs);
 
+export const groupBy = <T, S>(value: (x: T) => S, xs: T[]): Map<S, T[]> => {
+  const res = new Map<S, T[]>();
+  xs.forEach((x) => {
+    const prop = value(x);
+    const others = res.get(prop);
+    if (others) {
+      others.push(x);
+    } else {
+      res.set(prop, [x]);
+    }
+  });
+
+  return res;
+};
 export const sortBy = <T>(value: (x: T) => number, xs: T[]): any[] =>
   xs
     .map((x) => [x, value(x)] as [T, number])
     .sort((a, b) => a[1] - b[1])
     .map(([x]) => x);
 
+export const uniqueBy = <T, S>(value: (x: T) => S, xs: T[]): T[] => {
+  const seen = new Set<S>();
+  const res: T[] = [];
+  xs.forEach((x) => {
+    const prop = value(x);
+    if (!seen.has(prop)) {
+      res.push(x);
+      seen.add(prop);
+    }
+  });
+  return res;
+};
 export const hasAll = <T>(set: Set<T>, values: T[]) =>
   values.every((v) => set.has(v));
