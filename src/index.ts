@@ -19,6 +19,8 @@ export interface GameState {
   scale: number;
   cameraPosition: Position;
   speed: number;
+  showVision: boolean;
+  showGrid: boolean;
   quitting: boolean;
 }
 
@@ -56,6 +58,8 @@ const handleKeyPresses = (
   if (held.has("2")) state.speed = 2;
   if (held.has("3")) state.speed = 3;
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
+  if (released.has("v")) state.showVision = !state.showVision;
+  if (released.has("g")) state.showGrid = !state.showGrid;
 };
 
 const shouldAdvance = (speed: number, frameNumber: number): boolean => {
@@ -87,7 +91,13 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const render = ({ scale, cameraPosition, simulationState }: GameState) => {
+  const render = ({
+    scale,
+    cameraPosition,
+    simulationState,
+    showVision,
+    showGrid
+  }: GameState) => {
     const { entities } = simulationState;
     const canvasWidth = window.innerWidth;
     const canvasHeight = window.innerHeight;
@@ -126,18 +136,20 @@ const main = async () => {
       transformPositionToPixelSpace([0, 0])
     );
 
-    drawGrid({
-      ctx,
-      width: scale,
-      height: scale,
-      topLeft: transformPositionToPixelSpace([
-        gameBorders.left,
-        gameBorders.top
-      ]),
-      strokeStyle: "darkgrey",
-      xCells: gameBorders.right - gameBorders.left + 1,
-      yCells: gameBorders.top - gameBorders.bottom + 1
-    });
+    if (showGrid) {
+      drawGrid({
+        ctx,
+        width: scale,
+        height: scale,
+        topLeft: transformPositionToPixelSpace([
+          gameBorders.left,
+          gameBorders.top
+        ]),
+        strokeStyle: "darkgrey",
+        xCells: gameBorders.right - gameBorders.left + 1,
+        yCells: gameBorders.top - gameBorders.bottom + 1
+      });
+    }
 
     sortBy((e: Entity) => e.zIndex, entities).forEach((e) => {
       const image = (() => {
@@ -160,7 +172,7 @@ const main = async () => {
       const size = scale;
       const angle =
         "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0;
-      if (e.type === HIVELING) {
+      if (e.type === HIVELING && showVision) {
         drawCone({
           ctx,
           origin: [x, y],
@@ -195,6 +207,8 @@ const main = async () => {
     scale: 20,
     cameraPosition: [0, 0],
     speed: 0,
+    showVision: false,
+    showGrid: true,
     quitting: false
   };
   let frameNumber: number | null = null;
