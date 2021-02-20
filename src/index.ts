@@ -319,7 +319,7 @@ const main = async () => {
       );
       if (highlighed.length > 0) {
         const [x, y] = transformPositionToPixelSpace(highlighed[0].position);
-        const lines = prettyPrintEntity(highlighed[0]).split("\n");
+        const lines = highlighed.map(prettyPrintEntity).join("\n").split("\n");
         const lineheight = 15;
         const font = `${lineheight}px Georgia`;
         const yPadding = 10;
