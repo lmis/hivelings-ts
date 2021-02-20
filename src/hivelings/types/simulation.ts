@@ -41,14 +41,11 @@ export type EntityDetails =
 
 export type EntityDetailsWithPosition = EntityDetails & { position: Position };
 
-export interface GameState {
+export interface SimulationState {
   entities: Entity[];
   nextId: number;
   score: number;
   rngState: RngState;
-  scale: number;
-  cameraPosition: Position;
-  speed: number;
 }
 
 export const isHiveling = (e: Entity): e is Hiveling =>

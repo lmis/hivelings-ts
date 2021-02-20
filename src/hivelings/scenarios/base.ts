@@ -1,8 +1,5 @@
 import { EntityType, Rotation } from "hivelings/types/common";
-import {
-  EntityDetailsWithPosition,
-  GameState
-} from "hivelings/types/simulation";
+import { EntityDetailsWithPosition } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
@@ -29,7 +26,7 @@ const startingNutrition = crossProduct(range(-5, 6), [
   14,
   15
 ]) as Position[];
-const startingState: GameState = [
+const startingState: SimulationState = [
   ...startingHivelingPositions.map(
     (position) =>
       ({
@@ -69,10 +66,7 @@ const startingState: GameState = [
   entities: [],
   nextId: 0,
   score: 0,
-  rngState: makeStdLaggedFibo("baseScenarioSeed").getState(),
-  scale: 20,
-  cameraPosition: [0, 0],
-  speed: 0
+  rngState: makeStdLaggedFibo("baseScenarioSeed").getState()
 });
 
 export const base = { startingState };
