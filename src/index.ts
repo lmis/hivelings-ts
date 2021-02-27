@@ -24,8 +24,6 @@ import { toDeg } from "hivelings/transformations";
 import {
   EntityType,
   Input,
-  Decision,
-  DecisionType
 } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
 import { Trail } from "hivelings/types/player";
@@ -33,15 +31,6 @@ import { Trail } from "hivelings/types/player";
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
 const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
-
-const prettyPrintDecision = (d: Decision) => {
-  switch (d.type) {
-    case DecisionType.TURN:
-      return `${d.type}(${d.rotation})`;
-    default:
-      return d.type;
-  }
-};
 
 const prettyPrintEntity = (e: Entity): string => {
   const common = `${e.type}[${e.position[0]},${e.position[1]}]\n  identifier: ${e.identifier}\n  zIndex: ${e.zIndex}`;
