@@ -212,7 +212,6 @@ export const applyOutput = (
       hiveling.identifier,
       {
         memory64: memory64.substring(0, 64),
-        recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)]
       },
       stateAfterDecision
     )
@@ -237,7 +236,6 @@ export const advanceSimulation = async (
           zIndex,
           type,
           hasNutrition,
-          recentDecisions,
           memory64
         } = hiveling;
         const input: Input = {
@@ -251,7 +249,6 @@ export const advanceSimulation = async (
             zIndex,
             type,
             hasNutrition,
-            recentDecisions,
             memory64
           },
           randomSeed: randomPrintable(rng, rngState.sequence.length)

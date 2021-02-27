@@ -53,11 +53,7 @@ const prettyPrintEntity = (e: Entity): string => {
         "memory64"
       ];
       return (
-        common +
-        "\n" +
-        hivelingProps.map((k) => `  ${k}: ${e[k]}`).join("\n") +
-        "\n  recentDecisions: \n" +
-        e.recentDecisions.map((d) => "    " + prettyPrintDecision(d)).join("\n")
+        common + "\n" + hivelingProps.map((k) => `  ${k}: ${e[k]}`).join("\n")
       );
     case TRAIL:
       const trailProps: (keyof Trail)[] = ["orientation", "lifetime"];

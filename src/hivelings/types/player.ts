@@ -11,9 +11,9 @@ export interface HivelingDetails {
   hasNutrition: boolean;
 }
 export interface CurrentHivelingDetails extends HivelingDetails {
-  recentDecisions: Decision[];
   memory64: string;
 }
+
 export type Hiveling = EntityBase & HivelingDetails;
 export type CurrentHiveling = EntityBase & CurrentHivelingDetails;
 

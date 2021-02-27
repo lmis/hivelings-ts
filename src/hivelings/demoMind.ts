@@ -1,4 +1,5 @@
 import {
+  Decision,
   DecisionType,
   Input,
   Output,
@@ -14,21 +15,55 @@ const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
 interface Memory {
-  blockedFront: number;
-  deadlockResolution: number;
+  recentDecisions: Decision[];
 }
-const serialize = ({ blockedFront, deadlockResolution }: Memory): string =>
-  btoa(blockedFront + "," + deadlockResolution);
+const serialize = ({ recentDecisions }: Memory): string => {
+  return recentDecisions
+    .map((d) => {
+      switch (d.type) {
+        case TURN:
+          return "T" + d.rotation.toString().substring(0, 2);
+        default:
+          return d.type.toString().charAt(0);
+      }
+    })
+    .join(",");
+};
 
 const deserialize = (s: string): Memory => {
   if (s === "") {
-    return { blockedFront: 0, deadlockResolution: 0 };
+    return { recentDecisions: [] };
   }
 
-  const [blockedFront, deadlockResolution] = atob(s)
-    .split(",")
-    .map((n) => +n);
-  return { blockedFront, deadlockResolution };
+  const recentDecisions = s.split(",").map(
+    (d): Decision => {
+      switch (d.charAt(0)) {
+        case "T":
+          const rotation = [NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE].find(
+            (r) => r.substring(0, 2) === d.substring(1, 3)
+          );
+
+          if (!rotation) {
+            throw new Error("Unable to parse decision: " + d);
+          }
+          return {
+            type: TURN,
+            rotation
+          };
+        case "M":
+          return { type: MOVE };
+        case "P":
+          return { type: PICKUP };
+        case "D":
+          return { type: DROP };
+        case "W":
+          return { type: WAIT };
+        default:
+          throw new Error("Unable to parse decision: " + d);
+      }
+    }
+  );
+  return { recentDecisions };
 };
 
 // Which way to turn to face position
@@ -50,8 +85,16 @@ const right: Position = [1, 0];
 
 export const hivelingMind = (input: Input): Output => {
   const { visibleEntities, currentHiveling, randomSeed } = input;
-  const { memory64, recentDecisions, hasNutrition } = currentHiveling;
+  const { memory64, hasNutrition } = currentHiveling;
+  const { recentDecisions } = deserialize(memory64);
   const rng = makeStdLaggedFibo(randomSeed);
+
+  const takeDecision = (decision: Decision): Output => ({
+    decision,
+    memory64: serialize({
+      recentDecisions: [decision, ...recentDecisions.slice(0, 2)]
+    })
+  });
 
   const frontEntityType = visibleEntities.find((e) =>
     positionEquals(e.position, front)
@@ -65,10 +108,10 @@ export const hivelingMind = (input: Input): Output => {
     return [back, left, right].some((p) => positionEquals(e.position, p));
   });
   if (hasNutrition && frontEntityType === HIVE_ENTRANCE) {
-    return { decision: { type: DROP }, memory64 };
+    return takeDecision({ type: DROP });
   }
   if (!hasNutrition && frontEntityType === NUTRITION) {
-    return { decision: { type: PICKUP }, memory64 };
+    return takeDecision({ type: PICKUP });
   }
 
   const soughtType = hasNutrition ? HIVE_ENTRANCE : NUTRITION;
@@ -79,10 +122,10 @@ export const hivelingMind = (input: Input): Output => {
       .map((e) => positionToRotation(e.position))
   );
   if (rotation === NONE) {
-    return { decision: { type: MOVE }, memory64 };
+    return takeDecision({ type: MOVE });
   }
   if (rotation) {
-    return { decision: { type: TURN, rotation }, memory64 };
+    return takeDecision({ type: TURN, rotation });
   }
   const r2 = sortBy(
     (e) =>
@@ -96,13 +139,13 @@ export const hivelingMind = (input: Input): Output => {
     )
   ).map((e) => positionToRotation(e.position))[0];
   if (r2 === NONE) {
-    return { decision: { type: MOVE }, memory64 };
+    return takeDecision({ type: MOVE });
   }
   if (r2) {
-    return { decision: { type: TURN, rotation: r2 }, memory64 };
+    return takeDecision({ type: TURN, rotation: r2 });
   }
   if (recentDecisions[0]?.type !== MOVE && !blockedFront) {
-    return { decision: { type: MOVE }, memory64 };
+    return takeDecision({ type: MOVE });
   }
   const unblockedRotation = pickRandom(
     rng,
@@ -118,13 +161,10 @@ export const hivelingMind = (input: Input): Output => {
       .map(positionToRotation)
   );
   if (unblockedRotation === NONE) {
-    return { decision: { type: MOVE }, memory64 };
+    return takeDecision({ type: MOVE });
   }
   if (unblockedRotation) {
-    return {
-      decision: { type: TURN, rotation: unblockedRotation },
-      memory64
-    };
+    return takeDecision({ type: TURN, rotation: unblockedRotation });
   }
-  return { decision: { type: WAIT }, memory64 };
+  return takeDecision({ type: WAIT });
 };
