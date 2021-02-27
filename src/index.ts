@@ -1,4 +1,5 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
+import io from "socket.io-client";
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import {
   Position,
@@ -7,7 +8,8 @@ import {
   hasAll,
   distance,
   uniqueBy,
-  positionEquals
+  positionEquals,
+  wait
 } from "utils";
 import {
   gameBorders,
@@ -21,10 +23,7 @@ import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import { Entity, Hiveling, SimulationState } from "hivelings/types/simulation";
 import { hivelingMind } from "hivelings/demoMind";
 import { toDeg } from "hivelings/transformations";
-import {
-  EntityType,
-  Input,
-} from "hivelings/types/common";
+import { EntityType, Input, Output } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
 import { Trail } from "hivelings/types/player";
 
@@ -132,6 +131,11 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
+  const url = "https://fu824.sse.codesandbox.io/";
+  const HIVELING_MIND = "hiveling-mind";
+  const socket = io(url, { transports: ["websocket"] }).connect();
+  let socketMessageId = 0;
+
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
     scale: 20,
@@ -189,10 +193,19 @@ const main = async () => {
       releasedKeys.has("Enter") ||
       shouldAdvance(state.speed, frameNumber ?? 0)
     ) {
-      state.simulationState = await advanceSimulation(
-        async (i: Input) => hivelingMind(i),
-        state.simulationState
-      );
+      // TODO: This should maybe be unblocking and fill a buffer instead?
+      state.simulationState = await advanceSimulation(async (input: Input) => {
+        const id = socketMessageId++;
+        return await new Promise<Output>((resolve) => {
+          socket.emit(HIVELING_MIND, { input, id });
+          socket.on(HIVELING_MIND, (data: { output: Output; id: number }) => {
+            if (id === data.id) {
+              resolve(data.output);
+            }
+          });
+        });
+      }, state.simulationState);
+      socket.off(HIVELING_MIND);
     }
 
     const {

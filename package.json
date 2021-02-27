@@ -2,9 +2,13 @@
   "name": "hivelings",
   "version": "1.0.0",
   "description": "hivelings",
-  "keywords": ["hivelings"],
+  "keywords": [
+    "hivelings"
+  ],
   "main": "src/index.ts",
   "dependencies": {
+    "@types/socket.io-client": "1.4.35",
+    "socket.io-client": "3.0.1"
   },
   "devDependencies": {
     "typescript": "3.8.3"
@@ -12,5 +16,10 @@
   "scripts": {
     "start": "npm start"
   },
-  "browserslist": [">0.2%", "not dead", "not ie <= 11", "not op_mini all"]
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }
