@@ -63,7 +63,7 @@ export const groupBy = <T, S>(value: (x: T) => S, xs: T[]): Map<S, T[]> => {
 
   return res;
 };
-export const sortBy = <T>(value: (x: T) => number, xs: T[]): any[] =>
+export const sortBy = <T>(value: (x: T) => number, xs: T[]): T[] =>
   xs
     .map((x) => [x, value(x)] as [T, number])
     .sort((a, b) => a[1] - b[1])
@@ -83,3 +83,11 @@ export const uniqueBy = <T, S>(value: (x: T) => S, xs: T[]): T[] => {
 };
 export const hasAll = <T>(set: Set<T>, values: T[]) =>
   values.every((v) => set.has(v));
+
+export const takeWhile = <T>(pred: (x: T) => boolean, xs: T[]): T[] => {
+  const i = xs.findIndex((x) => !pred(x));
+  if (i === -1) {
+    return xs;
+  }
+  return xs.slice(0, i);
+};
