@@ -92,7 +92,7 @@ export const hivelingMind = (input: Input): Output => {
   const takeDecision = (decision: Decision): Output => ({
     decision,
     memory64: serialize({
-      recentDecisions: [decision, ...recentDecisions.slice(0, 2)]
+      recentDecisions: [decision, ...recentDecisions.slice(0, 5)]
     })
   });
 
@@ -144,7 +144,7 @@ export const hivelingMind = (input: Input): Output => {
   if (r2) {
     return takeDecision({ type: TURN, rotation: r2 });
   }
-  if (recentDecisions[0]?.type !== MOVE && !blockedFront) {
+  if (!blockedFront && recentDecisions.findIndex((d) => d.type !== MOVE) <= 3) {
     return takeDecision({ type: MOVE });
   }
   const unblockedRotation = pickRandom(

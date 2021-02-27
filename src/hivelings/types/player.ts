@@ -1,4 +1,4 @@
-import { Decision, EntityType, Rotation } from "hivelings/types/common";
+import { EntityType, Rotation } from "hivelings/types/common";
 import { Position } from "utils";
 
 export interface EntityBase {
