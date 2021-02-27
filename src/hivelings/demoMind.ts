@@ -8,7 +8,7 @@ import {
 } from "hivelings/types/common";
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
 import { pickRandom } from "rng/utils";
-import { Position, positionEquals, sortBy, takeWhile } from "utils";
+import { Position, sortBy, takeWhile } from "utils";
 import { Entity } from "./types/player";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
@@ -71,6 +71,8 @@ const deserialize = (s: string): Memory => {
   return { recentDecisions };
 };
 
+const key = ([x, y]: Position): string => x + "," + y;
+
 // Which way to turn to face position
 const positionToRotation = ([x, y]: Position): Rotation => {
   if (y >= Math.abs(x)) {
@@ -114,23 +116,21 @@ const blocks = (entityType: EntityType | undefined | null) =>
 
 const search = (
   soughtType: EntityType,
-  frontEntityType: EntityType | undefined,
-  visibleEntities: Entity[],
+  visibleEntitiesByPosition: Map<string, Entity>,
   recentDecisions: Decision[],
   rng: Rng
 ): Decision => {
-  const blockedFront = blocks(frontEntityType);
-  const visibleTargets = visibleEntities.filter((e) => e.type === soughtType);
+  const blockedFront = blocks(visibleEntitiesByPosition.get(key(front))?.type);
 
-  // Reachable target in sight. Go to it.
+  // Find reachable target.
+  const reachablePositions: Position[] = blockedFront
+    ? [back, left, right]
+    : [[0, 2], back, left, right];
   const reachableTarget = pickRandom(
     rng,
-    visibleTargets.filter((e) => {
-      if (!blockedFront && positionEquals(e.position, [0, 2])) {
-        return true;
-      }
-      return [back, left, right].some((p) => positionEquals(e.position, p));
-    })
+    reachablePositions
+      .map((p) => visibleEntitiesByPosition.get(key(p)))
+      .filter((e) => e?.type === soughtType)
   );
   if (reachableTarget) {
     return goTowards(reachableTarget.position);
@@ -139,8 +139,10 @@ const search = (
   // Find closest target.
   const closestTarget = sortBy(
     (e) => walkingCost(e.position),
-    visibleTargets.filter(
-      (e) => !blockedFront || positionToRotation(e.position) !== NONE
+    [...visibleEntitiesByPosition.values()].filter(
+      (e) =>
+        e.type === soughtType &&
+        (!blockedFront || positionToRotation(e.position) !== NONE)
     )
   )[0];
   if (closestTarget) {
@@ -155,27 +157,27 @@ const search = (
   const unblockedPosition = pickRandom(
     rng,
     [left, right, front].filter(
-      (p) =>
-        !visibleEntities.some(
-          (e) => positionEquals(e.position, p) && blocks(e.type)
-        )
+      (p) => !blocks(visibleEntitiesByPosition.get(key(p))?.type)
     )
   );
   if (unblockedPosition) {
     return goTowards(unblockedPosition);
   }
-  const blockedBack = visibleEntities.some(
-    (e) => positionEquals(e.position, back) && blocks(e.type)
-  );
+
+  const blockedBack = blocks(visibleEntitiesByPosition.get(key(back))?.type);
   return blockedBack ? { type: WAIT } : { type: TURN, rotation: BACK };
 };
 
 export const hivelingMind = (input: Input): Output => {
   const { visibleEntities, currentHiveling, randomSeed } = input;
   const { memory64, hasNutrition } = currentHiveling;
-  const { recentDecisions } = deserialize(memory64);
   const rng = makeStdLaggedFibo(randomSeed);
+  const visibleEntitiesByPosition = new Map<string, Entity>();
+  visibleEntities.forEach((e) => {
+    visibleEntitiesByPosition.set(key(e.position), e);
+  });
 
+  const { recentDecisions } = deserialize(memory64);
   const takeDecision = (decision: Decision): Output => ({
     decision,
     memory64: serialize({
@@ -183,9 +185,7 @@ export const hivelingMind = (input: Input): Output => {
     })
   });
 
-  const frontEntityType = visibleEntities.find((e) =>
-    positionEquals(e.position, front)
-  )?.type;
+  const frontEntityType = visibleEntitiesByPosition.get(key(front))?.type;
 
   // Desired thing in front, interact.
   if (hasNutrition && frontEntityType === HIVE_ENTRANCE) {
@@ -199,8 +199,7 @@ export const hivelingMind = (input: Input): Output => {
   return takeDecision(
     search(
       hasNutrition ? HIVE_ENTRANCE : NUTRITION,
-      frontEntityType,
-      visibleEntities,
+      visibleEntitiesByPosition,
       recentDecisions,
       rng
     )
