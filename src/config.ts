@@ -8,5 +8,7 @@ export const gameBorders = {
 export const canvasWidth = 800;
 export const canvasHeight = 800;
 
-export const fieldOfView = Math.PI * 0.7;
+export const fieldOfView = Math.PI * 0.71;
 export const sightDistance = 6;
+export const peripherialSightFieldOfView = Math.PI * 1.2;
+export const peripherialSightDistance = 1.5;

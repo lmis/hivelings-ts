@@ -9,7 +9,13 @@ import {
   uniqueBy,
   positionEquals
 } from "utils";
-import { gameBorders, fieldOfView } from "config";
+import {
+  gameBorders,
+  fieldOfView,
+  peripherialSightFieldOfView,
+  sightDistance,
+  peripherialSightDistance
+} from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import { Entity, Hiveling, SimulationState } from "hivelings/types/simulation";
@@ -292,9 +298,17 @@ const main = async () => {
         drawCone({
           ctx,
           origin: [x, y],
+          angleStart: angle - peripherialSightFieldOfView / 2,
+          angleEnd: angle + peripherialSightFieldOfView / 2,
+          radius: peripherialSightDistance * scale,
+          strokeStyle: "black"
+        });
+        drawCone({
+          ctx,
+          origin: [x, y],
           angleStart: angle - fieldOfView / 2,
           angleEnd: angle + fieldOfView / 2,
-          radius: 6 * size,
+          radius: sightDistance * scale,
           strokeStyle: "black"
         });
       }

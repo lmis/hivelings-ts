@@ -1,15 +1,13 @@
 import {
-  Decision,
   DecisionType,
   Input,
   Output,
   Rotation,
   EntityType
 } from "hivelings/types/common";
-import { Entity, CurrentHiveling } from "hivelings/types/player";
-import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
+import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { pickRandom } from "rng/utils";
-import { Position, positionEquals } from "utils";
+import { Position, positionEquals, sortBy } from "utils";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
@@ -19,10 +17,19 @@ interface Memory {
   blockedFront: number;
   deadlockResolution: number;
 }
-// You could do much smarter things here to compress the info down if space is tight.
-const serialize = (m: Memory): string => JSON.stringify(m);
-const deserialize = (s: string): Memory =>
-  s === "" ? { blockedFront: 0, deadlockResolution: 0 } : JSON.parse(s);
+const serialize = ({ blockedFront, deadlockResolution }: Memory): string =>
+  btoa(blockedFront + "," + deadlockResolution);
+
+const deserialize = (s: string): Memory => {
+  if (s === "") {
+    return { blockedFront: 0, deadlockResolution: 0 };
+  }
+
+  const [blockedFront, deadlockResolution] = atob(s)
+    .split(",")
+    .map((n) => +n);
+  return { blockedFront, deadlockResolution };
+};
 
 // Which way to turn to face position
 const positionToRotation = ([x, y]: Position): Rotation => {
@@ -36,150 +43,88 @@ const positionToRotation = ([x, y]: Position): Rotation => {
     return CLOCKWISE;
   }
 };
-const origin: Position = [0, 0];
 const front: Position = [0, 1];
 const back: Position = [0, -1];
 const left: Position = [-1, 0];
 const right: Position = [1, 0];
 
-const goTowards = (
-  position: Position | undefined,
-  blockedPositions: Position[],
-  currentHiveling: CurrentHiveling
-): Output => {
-  const { memory64 } = currentHiveling;
-  if (!position) {
-    // No position. No movement.
-    return { decision: { type: WAIT }, memory64 };
+export const hivelingMind = (input: Input): Output => {
+  const { visibleEntities, currentHiveling, randomSeed } = input;
+  const { memory64, recentDecisions, hasNutrition } = currentHiveling;
+  const rng = makeStdLaggedFibo(randomSeed);
+
+  const frontEntityType = visibleEntities.find((e) =>
+    positionEquals(e.position, front)
+  )?.type;
+  const blockedFront =
+    frontEntityType && [HIVELING, OBSTACLE].includes(frontEntityType);
+  const reachableEntities = visibleEntities.filter((e) => {
+    if (!blockedFront && positionEquals(e.position, [0, 2])) {
+      return true;
+    }
+    return [back, left, right].some((p) => positionEquals(e.position, p));
+  });
+  if (hasNutrition && frontEntityType === HIVE_ENTRANCE) {
+    return { decision: { type: DROP }, memory64 };
   }
-  const rotation = positionToRotation(position);
-  if (rotation !== NONE) {
+  if (!hasNutrition && frontEntityType === NUTRITION) {
+    return { decision: { type: PICKUP }, memory64 };
+  }
+
+  const soughtType = hasNutrition ? HIVE_ENTRANCE : NUTRITION;
+  const rotation = pickRandom(
+    rng,
+    reachableEntities
+      .filter((e) => e.type === soughtType)
+      .map((e) => positionToRotation(e.position))
+  );
+  if (rotation === NONE) {
+    return { decision: { type: MOVE }, memory64 };
+  }
+  if (rotation) {
     return { decision: { type: TURN, rotation }, memory64 };
   }
-  if (blockedPositions.some((p) => positionEquals(p, front))) {
-    const { blockedFront } = deserialize(memory64);
-    // Count up blocked turns
-    return {
-      decision: { type: WAIT },
-      memory64: serialize(
-        blockedFront < 4
-          ? {
-              blockedFront: blockedFront + 1,
-              deadlockResolution: 0
-            }
-          : { blockedFront: 0, deadlockResolution: 4 }
+  const r2 = sortBy(
+    (e) =>
+      (positionToRotation(e.position) === NONE ? 0 : 1) +
+      Math.abs(e.position[0]) +
+      Math.abs(e.position[1]),
+    visibleEntities.filter(
+      (e) =>
+        e.type === soughtType &&
+        (!blockedFront || positionToRotation(e.position) !== NONE)
+    )
+  ).map((e) => positionToRotation(e.position))[0];
+  if (r2 === NONE) {
+    return { decision: { type: MOVE }, memory64 };
+  }
+  if (r2) {
+    return { decision: { type: TURN, rotation: r2 }, memory64 };
+  }
+  if (recentDecisions[0]?.type !== MOVE && !blockedFront) {
+    return { decision: { type: MOVE }, memory64 };
+  }
+  const unblockedRotation = pickRandom(
+    rng,
+    [left, right, front, back]
+      .filter(
+        (p) =>
+          !visibleEntities.some(
+            (e) =>
+              positionEquals(e.position, p) &&
+              [HIVELING, OBSTACLE].includes(e.type)
+          )
       )
+      .map(positionToRotation)
+  );
+  if (unblockedRotation === NONE) {
+    return { decision: { type: MOVE }, memory64 };
+  }
+  if (unblockedRotation) {
+    return {
+      decision: { type: TURN, rotation: unblockedRotation },
+      memory64
     };
   }
-  // No need to turn. Move and reset blocked count
-  return {
-    decision: { type: MOVE },
-    memory64: serialize({ blockedFront: 0, deadlockResolution: 0 })
-  };
-};
-
-const search = (
-  condition: (e: Entity) => boolean,
-  decision: Decision,
-  closeEntities: Entity[],
-  currentHiveling: CurrentHiveling,
-  rng: Rng
-): Output => {
-  const { memory64 } = currentHiveling;
-  const surroundingPoitions = [front, back, left, right];
-  const targets = closeEntities.filter(condition).map((e) => e.position);
-  const targetsAround = targets.filter((p) =>
-    surroundingPoitions.some((s) => positionEquals(p, s))
-  );
-  const targetsUnderneath = targets.filter((p) => positionEquals(p, origin));
-  const blockedPositions = closeEntities
-    .filter((e) => [HIVELING, OBSTACLE].includes(e.type))
-    .map((e) => e.position);
-  const nonBlockedSurroundingPositions = surroundingPoitions.filter(
-    (p: Position) => !blockedPositions.some((bp) => positionEquals(bp, p))
-  );
-
-  if (targetsAround.length) {
-    if (targetsAround.some((p) => positionEquals(p, front))) {
-      // Target right in front. Interact!
-      return { decision, memory64 };
-    }
-    return goTowards(targetsAround[0], blockedPositions, currentHiveling);
-  } else if (targetsUnderneath.length) {
-    return goTowards(
-      nonBlockedSurroundingPositions[0],
-      blockedPositions,
-      currentHiveling
-    );
-  } else if (targets.length) {
-    // Prefer a target in front. Fall back to any other instead.
-    const position =
-      targets.find((p) => positionEquals(p, front)) ?? targets[0];
-    return goTowards(position, blockedPositions, currentHiveling);
-  } else {
-    // No targets. Continue searching.
-    if (
-      !blockedPositions.includes(front) &&
-      currentHiveling.recentDecisions[0]?.type === TURN
-    ) {
-      // Just turned. Move forward.
-      return { decision: { type: MOVE }, memory64 };
-    }
-
-    if (nonBlockedSurroundingPositions.length === 0) {
-      return { decision: { type: WAIT }, memory64 };
-    }
-
-    return goTowards(
-      pickRandom(rng, nonBlockedSurroundingPositions),
-      blockedPositions,
-      currentHiveling
-    );
-  }
-};
-
-export const hivelingMind = (input: Input): Output => {
-  const { closeEntities, currentHiveling, randomSeed } = input;
-  const { memory64 } = currentHiveling;
-  const { deadlockResolution } = deserialize(memory64);
-  const rng = makeStdLaggedFibo(randomSeed);
-  if (deadlockResolution > 0) {
-    const previousDecision = currentHiveling.recentDecisions[0]?.type;
-    if (previousDecision === TURN) {
-      return {
-        decision: { type: MOVE },
-        memory64: serialize({
-          blockedFront: 0,
-          deadlockResolution: deadlockResolution - 1
-        })
-      };
-    } else {
-      return {
-        decision: {
-          type: TURN,
-          rotation: pickRandom(rng, [COUNTERCLOCKWISE, CLOCKWISE, BACK])
-        },
-        memory64
-      };
-    }
-  }
-  if (currentHiveling.hasNutrition) {
-    // Bring food home.
-    return search(
-      (e) => e.type === HIVE_ENTRANCE,
-      { type: DROP },
-      closeEntities,
-      currentHiveling,
-      rng
-    );
-  } else {
-    // Search for food.
-    return search(
-      (e) => e.type === NUTRITION,
-      { type: PICKUP },
-      closeEntities,
-      currentHiveling,
-      rng
-    );
-  }
+  return { decision: { type: WAIT }, memory64 };
 };

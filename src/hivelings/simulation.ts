@@ -16,27 +16,36 @@ import {
 import {
   addRotations,
   relativePosition,
-  normalizeRadian,
-  toDeg,
+  inverseRotatePosition,
   entityForPlayer
 } from "hivelings/transformations";
 import { max, maxBy, distance, Position, positionEquals } from "utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 import { randomPrintable, shuffle } from "rng/utils";
-import { fieldOfView, sightDistance } from "config";
+import {
+  fieldOfView,
+  peripherialSightDistance,
+  peripherialSightFieldOfView,
+  sightDistance
+} from "config";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
 export const sees = ({ position, orientation }: Hiveling, p: Position) => {
-  const [x, y] = relativePosition(position, p);
-  const angle = normalizeRadian(
-    Math.atan2(x, y) - (Math.PI * toDeg(orientation)) / 180
+  const [x, y] = inverseRotatePosition(
+    orientation,
+    relativePosition(position, p)
   );
-  return (
-    Math.abs(angle) < fieldOfView / 2 && distance(position, p) < sightDistance
-  );
+
+  const angle = Math.abs(Math.atan2(x, y));
+  const dist = distance(position, p);
+  const inSight = angle <= fieldOfView / 2 && dist <= sightDistance;
+  const inPeripheralView =
+    angle <= peripherialSightFieldOfView / 2 &&
+    dist <= peripherialSightDistance;
+  return inSight || inPeripheralView;
 };
 
 export const addEntity = (
@@ -232,7 +241,7 @@ export const advanceSimulation = async (
           memory64
         } = hiveling;
         const input: Input = {
-          closeEntities: entities
+          visibleEntities: entities
             .filter(
               (e) => e.identifier !== identifier && sees(hiveling, e.position)
             )

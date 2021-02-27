@@ -31,7 +31,7 @@ export type Decision =
   | { type: DecisionType.WAIT };
 
 export interface Input {
-  closeEntities: Entity[];
+  visibleEntities: Entity[];
   currentHiveling: CurrentHiveling;
   randomSeed: string;
 }
