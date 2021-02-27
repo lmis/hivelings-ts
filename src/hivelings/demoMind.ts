@@ -2,24 +2,27 @@ import {
   Decision,
   DecisionType,
   Input,
+  Output,
   Rotation,
   EntityType
 } from "hivelings/types/common";
-import { Entity, Hiveling } from "hivelings/types/player";
+import { Entity, CurrentHiveling } from "hivelings/types/player";
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
 import { pickRandom } from "rng/utils";
 import { Position, positionEquals } from "utils";
 
-const {
-  MOVE,
-  TURN,
-  PICKUP,
-  DROP,
-  WAIT,
-  REMEMBER_128_CHARACTERS
-} = DecisionType;
+const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
+
+interface Memory {
+  blockedFront: number;
+  deadlockResolution: number;
+}
+// You could do much smarter things here to compress the info down if space is tight.
+const serialize = (m: Memory): string => JSON.stringify(m);
+const deserialize = (s: string): Memory =>
+  s === "" ? { blockedFront: 0, deadlockResolution: 0 } : JSON.parse(s);
 
 // Which way to turn to face position
 const positionToRotation = ([x, y]: Position): Rotation => {
@@ -38,50 +41,51 @@ const front: Position = [0, 1];
 const back: Position = [0, -1];
 const left: Position = [-1, 0];
 const right: Position = [1, 0];
-const BLOCKED_FRONT = "BLOCKED_FRONT";
-const RESOLVE_DEADLOCK = "RESOLVE_DEADLOCK";
 
 const goTowards = (
   position: Position | undefined,
   blockedPositions: Position[],
-  currentHiveling: Hiveling
-): Decision => {
+  currentHiveling: CurrentHiveling
+): Output => {
+  const { memory64 } = currentHiveling;
   if (!position) {
     // No position. No movement.
-    return { type: WAIT };
+    return { decision: { type: WAIT }, memory64 };
   }
   const rotation = positionToRotation(position);
-  if (rotation === NONE) {
-    if (blockedPositions.some((p) => positionEquals(p, front))) {
-      const numberOfBlocked = +(
-        /^BLOCKED_FRONT(\d+)/.exec(currentHiveling.memory)?.[1] ?? 0
-      );
-      // Count up blocked turns
-      if (numberOfBlocked < 4) {
-        return {
-          type: REMEMBER_128_CHARACTERS,
-          message: BLOCKED_FRONT + (numberOfBlocked + 1)
-        };
-      }
-      return {
-        type: REMEMBER_128_CHARACTERS,
-        message: RESOLVE_DEADLOCK + 4
-      };
-    }
-    // No need to turn. Move.
-    return { type: MOVE };
+  if (rotation !== NONE) {
+    return { decision: { type: TURN, rotation }, memory64 };
   }
-
-  return { type: TURN, rotation };
+  if (blockedPositions.some((p) => positionEquals(p, front))) {
+    const { blockedFront } = deserialize(memory64);
+    // Count up blocked turns
+    return {
+      decision: { type: WAIT },
+      memory64: serialize(
+        blockedFront < 4
+          ? {
+              blockedFront: blockedFront + 1,
+              deadlockResolution: 0
+            }
+          : { blockedFront: 0, deadlockResolution: 4 }
+      )
+    };
+  }
+  // No need to turn. Move and reset blocked count
+  return {
+    decision: { type: MOVE },
+    memory64: serialize({ blockedFront: 0, deadlockResolution: 0 })
+  };
 };
 
 const search = (
   condition: (e: Entity) => boolean,
   decision: Decision,
   closeEntities: Entity[],
-  currentHiveling: Hiveling,
+  currentHiveling: CurrentHiveling,
   rng: Rng
-): Decision => {
+): Output => {
+  const { memory64 } = currentHiveling;
   const surroundingPoitions = [front, back, left, right];
   const targets = closeEntities.filter(condition).map((e) => e.position);
   const targetsAround = targets.filter((p) =>
@@ -98,7 +102,7 @@ const search = (
   if (targetsAround.length) {
     if (targetsAround.some((p) => positionEquals(p, front))) {
       // Target right in front. Interact!
-      return decision;
+      return { decision, memory64 };
     }
     return goTowards(targetsAround[0], blockedPositions, currentHiveling);
   } else if (targetsUnderneath.length) {
@@ -119,11 +123,11 @@ const search = (
       currentHiveling.recentDecisions[0]?.type === TURN
     ) {
       // Just turned. Move forward.
-      return { type: MOVE };
+      return { decision: { type: MOVE }, memory64 };
     }
 
     if (nonBlockedSurroundingPositions.length === 0) {
-      return { type: WAIT };
+      return { decision: { type: WAIT }, memory64 };
     }
 
     return goTowards(
@@ -134,27 +138,28 @@ const search = (
   }
 };
 
-export const hivelingMind = (input: Input): Decision => {
+export const hivelingMind = (input: Input): Output => {
   const { closeEntities, currentHiveling, randomSeed } = input;
+  const { memory64 } = currentHiveling;
+  const { deadlockResolution } = deserialize(memory64);
   const rng = makeStdLaggedFibo(randomSeed);
-  const deadlockResolutionCount = /^RESOLVE_DEADLOCK(\d+)/.exec(
-    currentHiveling.memory
-  )?.[1];
-  if (deadlockResolutionCount) {
+  if (deadlockResolution > 0) {
     const previousDecision = currentHiveling.recentDecisions[0]?.type;
-    if (previousDecision === REMEMBER_128_CHARACTERS) {
-      return {
-        type: TURN,
-        rotation: pickRandom(rng, [COUNTERCLOCKWISE, CLOCKWISE, BACK])
-      };
-    }
     if (previousDecision === TURN) {
-      return { type: MOVE };
-    }
-    if (previousDecision === MOVE) {
       return {
-        type: REMEMBER_128_CHARACTERS,
-        message: RESOLVE_DEADLOCK + (+deadlockResolutionCount - 1)
+        decision: { type: MOVE },
+        memory64: serialize({
+          blockedFront: 0,
+          deadlockResolution: deadlockResolution - 1
+        })
+      };
+    } else {
+      return {
+        decision: {
+          type: TURN,
+          rotation: pickRandom(rng, [COUNTERCLOCKWISE, CLOCKWISE, BACK])
+        },
+        memory64
       };
     }
   }

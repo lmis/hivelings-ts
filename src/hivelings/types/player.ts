@@ -9,10 +9,13 @@ export interface EntityBase {
 export interface HivelingDetails {
   type: EntityType.HIVELING;
   hasNutrition: boolean;
+}
+export interface CurrentHivelingDetails extends HivelingDetails {
   recentDecisions: Decision[];
-  memory: string;
+  memory64: string;
 }
 export type Hiveling = EntityBase & HivelingDetails;
+export type CurrentHiveling = EntityBase & CurrentHivelingDetails;
 
 export interface TrailDetails {
   type: EntityType.TRAIL;

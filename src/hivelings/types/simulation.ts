@@ -1,7 +1,7 @@
 import { Rotation, EntityType } from "hivelings/types/common";
 import {
   EntityBase as PlayerEntityBase,
-  HivelingDetails as PlayerHivelingDetails,
+  CurrentHivelingDetails as PlayerHivelingDetails,
   TrailDetails as PlayerTrailDetails
 } from "hivelings/types/player";
 import { RngState } from "rng/laggedFibo";

@@ -1,4 +1,4 @@
-import { Entity, Hiveling } from "hivelings/types/player";
+import { Entity, CurrentHiveling } from "hivelings/types/player";
 
 export enum Rotation {
   NONE = "NONE",
@@ -16,15 +16,14 @@ export enum EntityType {
 }
 
 export enum DecisionType {
-  REMEMBER_128_CHARACTERS = "REMEMBER_128_CHARACTERS",
   TURN = "TURN",
   MOVE = "MOVE",
   PICKUP = "PICKUP",
   DROP = "DROP",
   WAIT = "WAIT"
 }
+
 export type Decision =
-  | { type: DecisionType.REMEMBER_128_CHARACTERS; message: string }
   | { type: DecisionType.TURN; rotation: Rotation }
   | { type: DecisionType.DROP }
   | { type: DecisionType.MOVE }
@@ -33,8 +32,13 @@ export type Decision =
 
 export interface Input {
   closeEntities: Entity[];
-  currentHiveling: Hiveling;
+  currentHiveling: CurrentHiveling;
   randomSeed: string;
 }
 
-export type HivelingMind = (input: Input) => Promise<Decision>;
+export interface Output {
+  decision: Decision;
+  memory64: String;
+}
+
+export type HivelingMind = (input: Input) => Promise<Output>;

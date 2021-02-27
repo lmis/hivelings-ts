@@ -35,7 +35,8 @@ const startingState: SimulationState = [
         memory: "",
         hasNutrition: false,
         recentDecisions: [],
-        orientation: Rotation.NONE
+        orientation: Rotation.NONE,
+        memory64: ""
       } as EntityDetailsWithPosition)
   ),
   ...startingEntrancePositions.map(

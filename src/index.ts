@@ -7,7 +7,6 @@ import {
   hasAll,
   distance,
   uniqueBy,
-  groupBy,
   positionEquals
 } from "utils";
 import { gameBorders, fieldOfView } from "config";
@@ -20,7 +19,6 @@ import {
   EntityType,
   Input,
   Decision,
-  Rotation,
   DecisionType
 } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
@@ -34,8 +32,6 @@ const prettyPrintDecision = (d: Decision) => {
   switch (d.type) {
     case DecisionType.TURN:
       return `${d.type}(${d.rotation})`;
-    case DecisionType.REMEMBER_128_CHARACTERS:
-      return `${d.type}(${d.message})`;
     default:
       return d.type;
   }
@@ -48,7 +44,7 @@ const prettyPrintEntity = (e: Entity): string => {
       const hivelingProps: (keyof Hiveling)[] = [
         "hasNutrition",
         "orientation",
-        "memory"
+        "memory64"
       ];
       return (
         common +

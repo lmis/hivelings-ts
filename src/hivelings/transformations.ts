@@ -44,11 +44,10 @@ export const addRotations = (a: Rotation, b: Rotation): Rotation => {
   return fromDeg((toDeg(a) + toDeg(b)) % 360);
 };
 
-export const relativePosition = ([ox, oy]: Position, [x, y]: Position): Position => [
-  x - ox,
-  y - oy
-];
-
+export const relativePosition = (
+  [ox, oy]: Position,
+  [x, y]: Position
+): Position => [x - ox, y - oy];
 
 const inverseRotatePosition = (
   rotation: Rotation,
@@ -69,14 +68,12 @@ const inverseRotatePosition = (
 export const entityForPlayer = (orientation: Rotation, origin: Position) => (
   e: Entity
 ): PlayerEntity => {
-  const { zIndex, position } = e;
-
   const base = {
     position: inverseRotatePosition(
       orientation,
-      relativePosition(origin, position)
+      relativePosition(origin, e.position)
     ),
-    zIndex
+    zIndex: e.zIndex
   };
 
   switch (e.type) {
@@ -84,9 +81,7 @@ export const entityForPlayer = (orientation: Rotation, origin: Position) => (
       return {
         ...base,
         type: e.type,
-        hasNutrition: e.hasNutrition,
-        recentDecisions: e.recentDecisions,
-        memory: e.memory
+        hasNutrition: e.hasNutrition
       };
     case TRAIL:
       return {

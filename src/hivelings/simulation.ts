@@ -1,10 +1,10 @@
 import {
-  Decision,
   DecisionType,
   Rotation,
   EntityType,
   HivelingMind,
-  Input
+  Input,
+  Output
 } from "hivelings/types/common";
 import {
   Entity,
@@ -25,14 +25,7 @@ import { loadLaggedFibo } from "rng/laggedFibo";
 import { randomPrintable, shuffle } from "rng/utils";
 import { fieldOfView, sightDistance } from "config";
 
-const {
-  MOVE,
-  TURN,
-  PICKUP,
-  DROP,
-  WAIT,
-  REMEMBER_128_CHARACTERS
-} = DecisionType;
+const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
@@ -98,9 +91,9 @@ const fadeTrails = (
     .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
 });
 
-export const applyDecision = (
+export const applyOutput = (
   originalState: SimulationState,
-  [decision, hiveling]: [Decision, Hiveling]
+  [{ decision, memory64 }, hiveling]: [Output, Hiveling]
 ): SimulationState => {
   const targetPos = ((): Position => {
     const [x, y] = hiveling.position;
@@ -128,12 +121,6 @@ export const applyDecision = (
     switch (decision.type) {
       case WAIT:
         return addScore(-1, originalState);
-      case REMEMBER_128_CHARACTERS:
-        return updateHiveling(
-          hiveling.identifier,
-          { memory: decision.message.substring(0, 128) },
-          addScore(-Math.round(decision.message.length / 20), originalState)
-        );
       case TURN:
         if (decision.rotation === NONE) {
           return addScore(-2, originalState);
@@ -215,6 +202,7 @@ export const applyDecision = (
     updateHiveling(
       hiveling.identifier,
       {
+        memory64: memory64.substring(0, 64),
         recentDecisions: [decision, ...hiveling.recentDecisions.slice(0, 2)]
       },
       stateAfterDecision
@@ -230,34 +218,41 @@ export const advanceSimulation = async (
   const rng = loadLaggedFibo(rngState);
   const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
-  // The player code need not be able to run in parallel, so we sequence here
-  // instead of Promise.all.
-  const decisionsWithMetadata: [Decision, Hiveling][] = [];
-  for (const hiveling of shuffledHivelings) {
-    const {
-      position,
-      orientation,
-      identifier,
-      highlighted,
-      ...rest
-    } = hiveling;
-    const input: Input = {
-      closeEntities: entities
-        .filter(
-          (e) => e.identifier !== identifier && sees(hiveling, e.position)
-        )
-        .map(entityForPlayer(orientation, position)),
-      currentHiveling: { ...rest, position: [0, 0] },
-      randomSeed: randomPrintable(rng, rngState.sequence.length)
-    };
-    const decision: [Decision, Hiveling] = [
-      await hivelingMind(input),
-      hiveling
-    ];
-    decisionsWithMetadata.push(decision);
-  }
+  const outputWithMetadata: [Output, Hiveling][] = await Promise.all(
+    shuffledHivelings.map(
+      async (hiveling): Promise<[Output, Hiveling]> => {
+        const {
+          position,
+          orientation,
+          identifier,
+          zIndex,
+          type,
+          hasNutrition,
+          recentDecisions,
+          memory64
+        } = hiveling;
+        const input: Input = {
+          closeEntities: entities
+            .filter(
+              (e) => e.identifier !== identifier && sees(hiveling, e.position)
+            )
+            .map(entityForPlayer(orientation, position)),
+          currentHiveling: {
+            position: [0, 0],
+            zIndex,
+            type,
+            hasNutrition,
+            recentDecisions,
+            memory64
+          },
+          randomSeed: randomPrintable(rng, rngState.sequence.length)
+        };
+        return [await hivelingMind(input), hiveling];
+      }
+    )
+  );
 
-  return decisionsWithMetadata.reduce(applyDecision, {
+  return outputWithMetadata.reduce(applyOutput, {
     ...state,
     entities,
     rngState: rng.getState()
