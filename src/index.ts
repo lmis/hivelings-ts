@@ -132,11 +132,9 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const url = "https://fu824.sse.codesandbox.io/";
+  const url = "https://zj8h3.sse.codesandbox.io/";
   const HIVELING_MIND = "hiveling-mind";
-  const socket = isDemo
-    ? (null as any)
-    : io(url, { transports: ["websocket"] });
+  const socket = isDemo ? null : io(url, { transports: ["websocket"] });
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -195,24 +193,21 @@ const main = async () => {
       releasedKeys.has("Enter") ||
       shouldAdvance(state.speed, frameNumber ?? 0)
     ) {
-      if (isDemo) {
-        state.simulationState = await advanceSimulation(async (inputs: Input[]) => {
-          return inputs.map(hivelingMind);
-        }, state.simulationState);
-      } else {
-        state.simulationState = await advanceSimulation(
-          async (inputs: Input[]) => {
-            return await new Promise<Output[]>((resolve) => {
-              socket.on(HIVELING_MIND, (outputs: Output[]) => {
-                resolve(outputs);
-              });
-              socket.emit(HIVELING_MIND, { inputs });
+      state.simulationState = await advanceSimulation(
+        async (inputs: Input[]) => {
+          if (isDemo) {
+            return inputs.map(hivelingMind);
+          }
+          return await new Promise<Output[]>((resolve) => {
+            socket?.on(HIVELING_MIND, (outputs: Output[]) => {
+              resolve(outputs);
             });
-          },
-          state.simulationState
-        );
-        socket.off(HIVELING_MIND);
-      }
+            socket?.emit(HIVELING_MIND, inputs);
+          });
+        },
+        state.simulationState
+      );
+      socket?.off(HIVELING_MIND);
     }
 
     const {
