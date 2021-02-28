@@ -40,5 +40,3 @@ export interface Output {
   decision: Decision;
   memory64: string;
 }
-
-export type HivelingMind = (input: Input) => Promise<Output>;

@@ -29,6 +29,14 @@ export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
 export const range = (lower: number, upper: number) =>
   Array.from({ length: upper - lower }, (_, i) => i + lower);
 
+export const zip = <T, S>(xs: T[], ys: S[]): [T, S][] => {
+  const res = [];
+  for (let i = 0; i < Math.min(xs.length, ys.length); ++i) {
+    res[i] = [xs[i], ys[i]] as [T, S];
+  }
+  return res;
+};
+
 export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
   xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));
 

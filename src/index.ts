@@ -16,7 +16,8 @@ import {
   fieldOfView,
   peripherialSightFieldOfView,
   sightDistance,
-  peripherialSightDistance
+  peripherialSightDistance,
+  isDemo
 } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
@@ -133,8 +134,9 @@ const main = async () => {
 
   const url = "https://fu824.sse.codesandbox.io/";
   const HIVELING_MIND = "hiveling-mind";
-  const socket = io(url, { transports: ["websocket"] }).connect();
-  let socketMessageId = 0;
+  const socket = isDemo
+    ? (null as any)
+    : io(url, { transports: ["websocket"] });
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -193,19 +195,24 @@ const main = async () => {
       releasedKeys.has("Enter") ||
       shouldAdvance(state.speed, frameNumber ?? 0)
     ) {
-      // TODO: This should maybe be unblocking and fill a buffer instead?
-      state.simulationState = await advanceSimulation(async (input: Input) => {
-        const id = socketMessageId++;
-        return await new Promise<Output>((resolve) => {
-          socket.emit(HIVELING_MIND, { input, id });
-          socket.on(HIVELING_MIND, (data: { output: Output; id: number }) => {
-            if (id === data.id) {
-              resolve(data.output);
-            }
-          });
-        });
-      }, state.simulationState);
-      socket.off(HIVELING_MIND);
+      if (isDemo) {
+        state.simulationState = await advanceSimulation(async (inputs: Input[]) => {
+          return inputs.map(hivelingMind);
+        }, state.simulationState);
+      } else {
+        state.simulationState = await advanceSimulation(
+          async (inputs: Input[]) => {
+            return await new Promise<Output[]>((resolve) => {
+              socket.on(HIVELING_MIND, (outputs: Output[]) => {
+                resolve(outputs);
+              });
+              socket.emit(HIVELING_MIND, { inputs });
+            });
+          },
+          state.simulationState
+        );
+        socket.off(HIVELING_MIND);
+      }
     }
 
     const {

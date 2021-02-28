@@ -2,7 +2,6 @@ import {
   DecisionType,
   Rotation,
   EntityType,
-  HivelingMind,
   Input,
   Output
 } from "hivelings/types/common";
@@ -19,7 +18,7 @@ import {
   inverseRotatePosition,
   entityForPlayer
 } from "hivelings/transformations";
-import { max, maxBy, distance, Position, positionEquals } from "utils";
+import { max, maxBy, distance, Position, positionEquals, zip } from "utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 import { randomPrintable, shuffle } from "rng/utils";
 import {
@@ -211,7 +210,7 @@ export const applyOutput = (
     updateHiveling(
       hiveling.identifier,
       {
-        memory64: memory64.substring(0, 64),
+        memory64: memory64.substring(0, 64)
       },
       stateAfterDecision
     )
@@ -219,46 +218,43 @@ export const applyOutput = (
 };
 
 export const advanceSimulation = async (
-  hivelingMind: HivelingMind,
+  sendToPlayer: (inputs: Input[]) => Promise<Output[]>,
   state: SimulationState
 ) => {
   const { rngState, entities } = state;
   const rng = loadLaggedFibo(rngState);
   const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
-  const outputWithMetadata: [Output, Hiveling][] = await Promise.all(
-    shuffledHivelings.map(
-      async (hiveling): Promise<[Output, Hiveling]> => {
-        const {
-          position,
-          orientation,
-          identifier,
-          zIndex,
-          type,
-          hasNutrition,
-          memory64
-        } = hiveling;
-        const input: Input = {
-          visibleEntities: entities
-            .filter(
-              (e) => e.identifier !== identifier && sees(hiveling, e.position)
-            )
-            .map(entityForPlayer(orientation, position)),
-          currentHiveling: {
-            position: [0, 0],
-            zIndex,
-            type,
-            hasNutrition,
-            memory64
-          },
-          randomSeed: randomPrintable(rng, rngState.sequence.length)
-        };
-        return [await hivelingMind(input), hiveling];
-      }
-    )
-  );
+  const inputs: Input[] = shuffledHivelings.map((hiveling) => {
+    const {
+      position,
+      orientation,
+      identifier,
+      zIndex,
+      type,
+      hasNutrition,
+      memory64
+    } = hiveling;
+    return {
+      visibleEntities: entities
+        .filter(
+          (e) => e.identifier !== identifier && sees(hiveling, e.position)
+        )
+        .map(entityForPlayer(orientation, position)),
+      currentHiveling: {
+        position: [0, 0],
+        zIndex,
+        type,
+        hasNutrition,
+        memory64
+      },
+      randomSeed: randomPrintable(rng, rngState.sequence.length)
+    };
+  });
 
-  return outputWithMetadata.reduce(applyOutput, {
+  const outputs = await sendToPlayer(inputs);
+
+  return zip(outputs, shuffledHivelings).reduce(applyOutput, {
     ...state,
     entities,
     rngState: rng.getState()
