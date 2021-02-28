@@ -8,8 +8,7 @@ import {
   hasAll,
   distance,
   uniqueBy,
-  positionEquals,
-  wait
+  positionEquals
 } from "utils";
 import {
   gameBorders,
@@ -63,6 +62,7 @@ export interface GameState {
   showGrid: boolean;
   highlighted: Set<number>;
   quitting: boolean;
+  sending: boolean;
 }
 
 const drawBackground = (
@@ -144,7 +144,8 @@ const main = async () => {
     showVision: false,
     showGrid: true,
     highlighted: new Set(),
-    quitting: false
+    quitting: false,
+    sending: false
   };
   let frameNumber: number | null = null;
   const heldKeys = new Set<string>();
@@ -193,21 +194,28 @@ const main = async () => {
       releasedKeys.has("Enter") ||
       shouldAdvance(state.speed, frameNumber ?? 0)
     ) {
-      state.simulationState = await advanceSimulation(
-        async (inputs: Input[]) => {
-          if (isDemo) {
-            return inputs.map(hivelingMind);
-          }
-          return await new Promise<Output[]>((resolve) => {
-            socket?.on(HIVELING_MIND, (outputs: Output[]) => {
-              resolve(outputs);
-            });
-            socket?.emit(HIVELING_MIND, inputs);
-          });
-        },
-        state.simulationState
-      );
-      socket?.off(HIVELING_MIND);
+      if (isDemo) {
+        state.simulationState = await advanceSimulation(
+          async (inputs: Input[]) => inputs.map(hivelingMind),
+          state.simulationState
+        );
+      } else if (!state.sending) {
+        state.sending = true;
+        advanceSimulation(
+          async (inputs: Input[]) =>
+            new Promise<Output[]>((resolve) => {
+              socket?.on(HIVELING_MIND, (outputs: Output[]) => {
+                resolve(outputs);
+              });
+              socket?.emit(HIVELING_MIND, inputs);
+            }),
+          state.simulationState
+        ).then((s) => {
+          socket?.off(HIVELING_MIND);
+          state.simulationState = s;
+          state.sending = false;
+        });
+      }
     }
 
     const {
