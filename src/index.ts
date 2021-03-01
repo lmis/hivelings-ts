@@ -63,6 +63,7 @@ export interface GameState {
   highlighted: Set<number>;
   quitting: boolean;
   sending: boolean;
+  framesSinceLastAdvance: number;
 }
 
 const drawBackground = (
@@ -98,19 +99,25 @@ const handleKeyPresses = (
   if (held.has("1")) state.speed = 1;
   if (held.has("2")) state.speed = 2;
   if (held.has("3")) state.speed = 3;
+  if (held.has("4")) state.speed = 4;
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
   if (released.has("g")) state.showGrid = !state.showGrid;
 };
 
-const shouldAdvance = (speed: number, frameNumber: number): boolean => {
+const shouldAdvance = (
+  speed: number,
+  framesSinceLastAdvance: number
+): boolean => {
   switch (speed) {
     case 1:
-      return frameNumber % 20 === 0;
+      return framesSinceLastAdvance >= 50;
     case 2:
-      return frameNumber % 10 === 0;
+      return framesSinceLastAdvance >= 20;
     case 3:
-      return frameNumber % 5 === 0;
+      return framesSinceLastAdvance >= 10;
+    case 4:
+      return true;
     default:
       return false;
   }
@@ -145,9 +152,9 @@ const main = async () => {
     showGrid: true,
     highlighted: new Set(),
     quitting: false,
-    sending: false
+    sending: false,
+    framesSinceLastAdvance: 0
   };
-  let frameNumber: number | null = null;
   const heldKeys = new Set<string>();
   const releasedKeys = new Set<string>();
   const onKeyDown = (e: KeyboardEvent) => heldKeys.add(e.key);
@@ -191,15 +198,16 @@ const main = async () => {
     handleKeyPresses(heldKeys, releasedKeys, state);
 
     if (
-      releasedKeys.has("Enter") ||
-      shouldAdvance(state.speed, frameNumber ?? 0)
+      !state.sending &&
+      (releasedKeys.has("Enter") ||
+        shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
       if (isDemo) {
         state.simulationState = await advanceSimulation(
           async (inputs: Input[]) => inputs.map(hivelingMind),
           state.simulationState
         );
-      } else if (!state.sending) {
+      } else {
         state.sending = true;
         advanceSimulation(
           async (inputs: Input[]) =>
@@ -216,6 +224,9 @@ const main = async () => {
           state.sending = false;
         });
       }
+      state.framesSinceLastAdvance = 0;
+    } else {
+      state.framesSinceLastAdvance += 1;
     }
 
     const {
@@ -399,7 +410,7 @@ const main = async () => {
 
     releasedKeys.clear();
     mouse.released = false;
-    frameNumber = requestAnimationFrame(handleFrame);
+    requestAnimationFrame(handleFrame);
   };
   handleFrame();
 };
