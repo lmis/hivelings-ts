@@ -1,5 +1,4 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import io from "socket.io-client";
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import {
   Position,
@@ -139,9 +138,8 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const url = "https://zj8h3.sse.codesandbox.io/";
-  const HIVELING_MIND = "hiveling-mind";
-  const socket = isDemo ? null : io(url, { transports: ["websocket"] });
+  const url = "wss://zj8h3.sse.codesandbox.io";
+  const socket = isDemo ? (null as any) : new WebSocket(url);
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -212,14 +210,17 @@ const main = async () => {
         advanceSimulation(
           async (inputs: Input[]) =>
             new Promise<Output[]>((resolve) => {
-              socket?.on(HIVELING_MIND, (outputs: Output[]) => {
-                resolve(outputs);
-              });
-              socket?.emit(HIVELING_MIND, inputs);
+              if (!socket) {
+                return;
+              }
+              socket.onmessage = (event: MessageEvent<Output[]>) => {
+                resolve(JSON.parse(event.data.toString()));
+                socket.onmessage = () => null;
+              };
+              socket.send(JSON.stringify(inputs));
             }),
           state.simulationState
         ).then((s) => {
-          socket?.off(HIVELING_MIND);
           state.simulationState = s;
           state.sending = false;
         });
