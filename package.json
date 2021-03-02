@@ -6,9 +6,7 @@
     "hivelings"
   ],
   "main": "src/index.ts",
-  "dependencies": {
-    "socket.io-client": "3.0.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "3.8.3"
   },
