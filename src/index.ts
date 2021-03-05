@@ -14,7 +14,7 @@ import {
   fieldOfView,
   peripherialSightFieldOfView,
   sightDistance,
-  peripherialSightDistance,
+  peripherialSightDistance
 } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
@@ -138,7 +138,6 @@ const main = async () => {
   }
 
   const url = new URLSearchParams(window.location.search).get("hive-mind");
-  // "wss%3A%2F%2Fzj8h3.sse.codesandbox.io"
   const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
 
   let state: GameState = {
@@ -201,6 +200,7 @@ const main = async () => {
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
       if (!socket) {
+        // Demo
         state.simulationState = await advanceSimulation(
           async (inputs: Input[]) => inputs.map(hivelingMind),
           state.simulationState
