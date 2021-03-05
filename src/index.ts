@@ -15,7 +15,6 @@ import {
   peripherialSightFieldOfView,
   sightDistance,
   peripherialSightDistance,
-  isDemo
 } from "config";
 import { advanceSimulation } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
@@ -138,8 +137,9 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const url = "wss://zj8h3.sse.codesandbox.io";
-  const socket = isDemo ? (null as any) : new WebSocket(url);
+  const url = new URLSearchParams(window.location.search).get("hive-mind");
+  // "wss%3A%2F%2Fzj8h3.sse.codesandbox.io"
+  const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -200,7 +200,7 @@ const main = async () => {
       (releasedKeys.has("Enter") ||
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
-      if (isDemo) {
+      if (!socket) {
         state.simulationState = await advanceSimulation(
           async (inputs: Input[]) => inputs.map(hivelingMind),
           state.simulationState
@@ -210,9 +210,6 @@ const main = async () => {
         advanceSimulation(
           async (inputs: Input[]) =>
             new Promise<Output[]>((resolve) => {
-              if (!socket) {
-                return;
-              }
               socket.onmessage = (event: MessageEvent<Output[]>) => {
                 resolve(JSON.parse(event.data.toString()));
                 socket.onmessage = () => null;
