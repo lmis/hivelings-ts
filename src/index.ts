@@ -1,5 +1,5 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import { makeMockWebsocket } from "mockWebsocket";
+import { loadAssets } from "canvas/assets";
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import {
   Position,
@@ -20,12 +20,16 @@ import {
 } from "config";
 import { applyOutput, makeInput } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
-import { Entity, Hiveling, SimulationState } from "hivelings/types/simulation";
+import {
+  Entity,
+  Hiveling,
+  SimulationState,
+  isHiveling,
+  Trail
+} from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
 import { toDeg } from "hivelings/transformations";
 import { EntityType, Input, Output } from "hivelings/types/common";
-import { loadAssets } from "canvas/assets";
-import { isHiveling, Trail } from "hivelings/types/player";
 import { shuffle } from "rng/utils";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
@@ -140,13 +144,16 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
+  const demoSocket = {
+    onmessage: (_: MessageEvent<string>) => null,
+    send: (data: string) => {
+      const inputs = JSON.parse(data);
+      const outputs = JSON.stringify(inputs.map(demoHiveMind));
+      demoSocket.onmessage({ data: outputs } as any);
+    }
+  };
   const url = new URLSearchParams(window.location.search).get("hive-mind");
-  const socket = url
-    ? new WebSocket(decodeURIComponent(url))
-    : makeMockWebsocket((data) => {
-        const input = JSON.parse(data);
-        return JSON.stringify(input.map(demoHiveMind));
-      });
+  const socket = url ? new WebSocket(decodeURIComponent(url)) : demoSocket;
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -210,10 +217,7 @@ const main = async () => {
       state.sending = true;
       const { simulationState } = state;
       const { rng, entities } = simulationState;
-      const shuffledHivelings = shuffle(
-        rng,
-        entities.filter(isHiveling) as Hiveling[]
-      );
+      const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
       const inputs: Input[] = shuffledHivelings.map((h) =>
         makeInput(rng, entities, h)
