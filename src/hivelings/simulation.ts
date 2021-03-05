@@ -9,8 +9,7 @@ import {
   Entity,
   Hiveling,
   EntityDetailsWithPosition,
-  SimulationState,
-  isHiveling
+  SimulationState
 } from "hivelings/types/simulation";
 import {
   addRotations,
@@ -18,9 +17,9 @@ import {
   inverseRotatePosition,
   entityForPlayer
 } from "hivelings/transformations";
-import { max, maxBy, distance, Position, positionEquals, zip } from "utils";
+import { max, maxBy, distance, Position, positionEquals } from "utils";
 import { Rng } from "rng/laggedFibo";
-import { randomPrintable, shuffle } from "rng/utils";
+import { randomPrintable } from "rng/utils";
 import {
   fieldOfView,
   peripherialSightDistance,
