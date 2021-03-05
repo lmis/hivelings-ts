@@ -19,7 +19,7 @@ import {
   entityForPlayer
 } from "hivelings/transformations";
 import { max, maxBy, distance, Position, positionEquals, zip } from "utils";
-import { loadLaggedFibo } from "rng/laggedFibo";
+import { Rng } from "rng/laggedFibo";
 import { randomPrintable, shuffle } from "rng/utils";
 import {
   fieldOfView,
@@ -217,46 +217,31 @@ export const applyOutput = (
   );
 };
 
-export const advanceSimulation = async (
-  sendToPlayer: (inputs: Input[]) => Promise<Output[]>,
-  state: SimulationState
-) => {
-  const { rngState, entities } = state;
-  const rng = loadLaggedFibo(rngState);
-  const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
-
-  const inputs: Input[] = shuffledHivelings.map((hiveling) => {
-    const {
-      position,
-      orientation,
-      identifier,
+export const makeInput = (
+  rng: Rng,
+  entities: Entity[],
+  hiveling: Hiveling
+): Input => {
+  const {
+    position,
+    orientation,
+    identifier,
+    zIndex,
+    type,
+    hasNutrition,
+    memory64
+  } = hiveling;
+  return {
+    visibleEntities: entities
+      .filter((e) => e.identifier !== identifier && sees(hiveling, e.position))
+      .map(entityForPlayer(orientation, position)),
+    currentHiveling: {
+      position: [0, 0],
       zIndex,
       type,
       hasNutrition,
       memory64
-    } = hiveling;
-    return {
-      visibleEntities: entities
-        .filter(
-          (e) => e.identifier !== identifier && sees(hiveling, e.position)
-        )
-        .map(entityForPlayer(orientation, position)),
-      currentHiveling: {
-        position: [0, 0],
-        zIndex,
-        type,
-        hasNutrition,
-        memory64
-      },
-      randomSeed: randomPrintable(rng, rngState.sequence.length)
-    };
-  });
-
-  const outputs = await sendToPlayer(inputs);
-
-  return zip(outputs, shuffledHivelings).reduce(applyOutput, {
-    ...state,
-    entities,
-    rngState: rng.getState()
-  });
+    },
+    randomSeed: randomPrintable(rng, rng.getState().sequence.length)
+  };
 };

@@ -1,4 +1,5 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
+import { makeMockWebsocket } from "mockWebsocket";
 import { drawImage, drawGrid, drawCone } from "canvas/draw";
 import {
   Position,
@@ -7,7 +8,8 @@ import {
   hasAll,
   distance,
   uniqueBy,
-  positionEquals
+  positionEquals,
+  zip
 } from "utils";
 import {
   gameBorders,
@@ -16,14 +18,15 @@ import {
   sightDistance,
   peripherialSightDistance
 } from "config";
-import { advanceSimulation } from "hivelings/simulation";
+import { applyOutput, makeInput } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import { Entity, Hiveling, SimulationState } from "hivelings/types/simulation";
-import { hivelingMind } from "hivelings/demoMind";
+import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
 import { toDeg } from "hivelings/transformations";
 import { EntityType, Input, Output } from "hivelings/types/common";
 import { loadAssets } from "canvas/assets";
-import { Trail } from "hivelings/types/player";
+import { isHiveling, Trail } from "hivelings/types/player";
+import { shuffle } from "rng/utils";
 
 const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
@@ -138,7 +141,12 @@ const main = async () => {
   }
 
   const url = new URLSearchParams(window.location.search).get("hive-mind");
-  const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
+  const socket = url
+    ? new WebSocket(decodeURIComponent(url))
+    : makeMockWebsocket((data) => {
+        const input = JSON.parse(data);
+        return JSON.stringify(input.map(demoHiveMind));
+      });
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -199,29 +207,29 @@ const main = async () => {
       (releasedKeys.has("Enter") ||
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
-      if (!socket) {
-        // Demo
-        state.simulationState = await advanceSimulation(
-          async (inputs: Input[]) => inputs.map(hivelingMind),
-          state.simulationState
+      state.sending = true;
+      const { simulationState } = state;
+      const { rng, entities } = simulationState;
+      const shuffledHivelings = shuffle(
+        rng,
+        entities.filter(isHiveling) as Hiveling[]
+      );
+
+      const inputs: Input[] = shuffledHivelings.map((h) =>
+        makeInput(rng, entities, h)
+      );
+
+      socket.onmessage = (event: MessageEvent<string>) => {
+        socket.onmessage = () => null;
+
+        const outputs: Output[] = JSON.parse(event.data);
+        state.simulationState = zip(outputs, shuffledHivelings).reduce(
+          applyOutput,
+          simulationState
         );
-      } else {
-        state.sending = true;
-        advanceSimulation(
-          async (inputs: Input[]) =>
-            new Promise<Output[]>((resolve) => {
-              socket.onmessage = (event: MessageEvent<Output[]>) => {
-                resolve(JSON.parse(event.data.toString()));
-                socket.onmessage = () => null;
-              };
-              socket.send(JSON.stringify(inputs));
-            }),
-          state.simulationState
-        ).then((s) => {
-          state.simulationState = s;
-          state.sending = false;
-        });
-      }
+        state.sending = false;
+      };
+      socket.send(JSON.stringify(inputs));
       state.framesSinceLastAdvance = 0;
     } else {
       state.framesSinceLastAdvance += 1;

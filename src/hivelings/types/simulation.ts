@@ -4,7 +4,7 @@ import {
   CurrentHivelingDetails as PlayerHivelingDetails,
   TrailDetails as PlayerTrailDetails
 } from "hivelings/types/player";
-import { RngState } from "rng/laggedFibo";
+import { Rng } from "rng/laggedFibo";
 import { Position } from "utils";
 
 export interface EntityBase extends PlayerEntityBase {
@@ -44,7 +44,7 @@ export interface SimulationState {
   entities: Entity[];
   nextId: number;
   score: number;
-  rngState: RngState;
+  rng: Rng;
 }
 
 export const isHiveling = (e: Entity): e is Hiveling =>
