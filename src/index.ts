@@ -9,7 +9,9 @@ import {
   distance,
   uniqueBy,
   positionEquals,
-  zip
+  zip,
+  crossProduct,
+  range
 } from "utils";
 import {
   gameBorders,
@@ -18,7 +20,7 @@ import {
   sightDistance,
   peripherialSightDistance
 } from "config";
-import { applyOutput, makeInput } from "hivelings/simulation";
+import { applyOutput, makeInput, sees } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
   Entity,
@@ -319,28 +321,24 @@ const main = async () => {
             return null;
         }
       })();
-      const [x, y] = transformPositionToPixelSpace(e.position);
       const size = scale;
       const angle =
         "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0;
       if (e.type === HIVELING && showVision) {
-        drawCone({
-          ctx,
-          origin: [x, y],
-          angleStart: angle - peripherialSightFieldOfView / 2,
-          angleEnd: angle + peripherialSightFieldOfView / 2,
-          radius: peripherialSightDistance * scale,
-          strokeStyle: "black"
-        });
-        drawCone({
-          ctx,
-          origin: [x, y],
-          angleStart: angle - fieldOfView / 2,
-          angleEnd: angle + fieldOfView / 2,
-          radius: sightDistance * scale,
-          strokeStyle: "black"
-        });
+        crossProduct(
+          range(e.position[0] - sightDistance, e.position[0] + sightDistance),
+          range(e.position[1] - sightDistance, e.position[1] + sightDistance)
+        )
+          .filter((p) => sees(e, p))
+          .map(transformPositionToPixelSpace)
+          .forEach(([x, y]) => {
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.fillRect(x - size / 2, y - size / 2, size, size);
+            ctx.restore();
+          });
       }
+      const [x, y] = transformPositionToPixelSpace(e.position);
       if (!image) {
         ctx.save();
         ctx.fillStyle = "black";

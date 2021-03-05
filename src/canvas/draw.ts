@@ -77,39 +77,3 @@ export const drawGrid = ({
     drawLine(ctx, [xMin, y], [xMax, y], strokeStyle);
   }
 };
-
-export const drawCone = ({
-  ctx,
-  origin: [ox, oy],
-  angleStart,
-  angleEnd,
-  radius,
-  strokeStyle
-}: {
-  ctx: CanvasRenderingContext2D;
-  origin: Position;
-  angleStart: number;
-  angleEnd: number;
-  radius: number;
-  strokeStyle: CanvasRenderingContext2D["strokeStyle"];
-}) => {
-  // Translate angles such that 0 is upwards
-  const startAngle = angleStart - Math.PI / 2;
-  const endAngle = angleEnd - Math.PI / 2;
-  const start: Position = [
-    ox + Math.cos(startAngle) * radius,
-    oy + Math.sin(startAngle) * radius
-  ];
-  const end: Position = [
-    ox + Math.cos(endAngle) * radius,
-    oy + Math.sin(endAngle) * radius
-  ];
-  drawLine(ctx, [ox, oy], start, strokeStyle);
-  drawLine(ctx, [ox, oy], end, strokeStyle);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(ox, oy, radius, startAngle, endAngle);
-  ctx.strokeStyle = strokeStyle;
-  ctx.stroke();
-  ctx.restore();
-};
