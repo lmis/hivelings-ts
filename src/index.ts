@@ -1,6 +1,6 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { loadAssets } from "canvas/assets";
-import { drawImage, drawGrid, drawCone } from "canvas/draw";
+import { drawImage, drawGrid, drawRect, drawTextbox } from "canvas/draw";
 import {
   Position,
   sortBy,
@@ -13,13 +13,7 @@ import {
   crossProduct,
   range
 } from "utils";
-import {
-  gameBorders,
-  fieldOfView,
-  peripherialSightFieldOfView,
-  sightDistance,
-  peripherialSightDistance
-} from "config";
+import { gameBorders, sightDistance } from "config";
 import { applyOutput, makeInput, sees } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
@@ -330,25 +324,29 @@ const main = async () => {
           range(e.position[1] - sightDistance, e.position[1] + sightDistance)
         )
           .filter((p) => sees(e, p))
-          .map(transformPositionToPixelSpace)
-          .forEach(([x, y]) => {
-            ctx.save();
-            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-            ctx.fillRect(x - size / 2, y - size / 2, size, size);
-            ctx.restore();
+          .forEach((p) => {
+            drawRect({
+              ctx,
+              position: transformPositionToPixelSpace(p),
+              width: size,
+              height: size,
+              fillStyle: "rgba(255,255,255,0.5"
+            });
           });
       }
       const [x, y] = transformPositionToPixelSpace(e.position);
       if (!image) {
-        ctx.save();
-        ctx.fillStyle = "black";
-        ctx.fillRect(x - size / 2, y - size / 2, size, size);
-        ctx.restore();
+        drawRect({
+          ctx,
+          position: [x, y],
+          width: size,
+          height: size,
+          fillStyle: "black"
+        });
       } else {
         drawImage({
           ctx,
           alpha: 1,
-          flipped: false,
           image,
           width: size,
           height: size,
@@ -382,7 +380,6 @@ const main = async () => {
       );
 
       highlighedPositions.forEach((position) => {
-        const [x, y] = transformPositionToPixelSpace(position);
         const lines = sortBy(
           (e) => -e.zIndex,
           entities.filter((e) => positionEquals(e.position, position))
@@ -390,29 +387,11 @@ const main = async () => {
           .map(prettyPrintEntity)
           .join("\n")
           .split("\n");
-        const lineheight = 18;
-        const font = `${lineheight}px Georgia`;
-        const yPadding = 10;
-        const yOffset = lineheight * lines.length;
-        const height = yOffset + yPadding;
-        const width =
-          (lineheight / 2) *
-          Math.min(240, Math.max(...lines.map((l) => l.length)));
-
-        ctx.fillStyle = "black";
-        ctx.fillRect(x - width / 2, y - height / 2 - yOffset, width, height);
-        ctx.save();
-        ctx.fillStyle = "white";
-        ctx.font = font;
-        lines.forEach((text, i) => {
-          ctx.fillText(
-            text,
-            x - width / 2,
-            y - height / 2 - yOffset + (i + 1) * lineheight,
-            width
-          );
+        drawTextbox({
+          ctx,
+          position: transformPositionToPixelSpace(position),
+          lines
         });
-        ctx.restore();
       });
     }
 
