@@ -151,7 +151,7 @@ export const applyOutput = (
             hiveling.identifier,
             {
               position: targetPosition.map((x) =>
-                roundTo(x, 0.001)
+                parseFloat(x.toPrecision(4))
               ) as Position,
               zIndex: (entitiesInMovementArea[0]?.zIndex ?? -1) + 1
             },

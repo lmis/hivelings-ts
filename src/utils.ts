@@ -7,8 +7,6 @@ export const wait = (millis: number) =>
 export const fuzzyEqual = (a: number, b: number, tol: number) =>
   Math.abs(a - b) < tol;
 
-export const roundTo = (a: number, precision: number): number =>
-  precision === 0 ? a : Math.round(a / precision) * precision;
 export const positionFuzzyEqual = (
   [xa, ya]: Position,
   [xb, yb]: Position,
