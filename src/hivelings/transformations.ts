@@ -12,6 +12,17 @@ export const toRad = (degrees: number): number =>
   (degrees >= 0 ? (degrees / 180) * Math.PI : 2 * Math.PI - toRad(-degrees)) %
   360;
 
+export const degreeDiff = (a: number, b: number) => {
+  const d1 = a - b;
+  if (d1 > 180) {
+    return 360 - d1;
+  } else if (d1 < -180) {
+    return -(d1 + 360);
+  } else {
+    return d1;
+  }
+};
+
 export const relativePosition = (
   [ox, oy]: Position,
   [x, y]: Position
@@ -53,15 +64,14 @@ export const entityForPlayer = (
       return {
         ...base,
         type: e.type,
-        hasNutrition: e.hasNutrition
+        hasFood: e.hasFood
       };
     case TRAIL:
       return {
         ...base,
         type: e.type,
         lifetime: e.lifetime,
-        // TODO: Fix
-        orientation: (e.orientation - hiveling.orientation) % 360
+        orientation: degreeDiff(e.orientation, hiveling.orientation)
       };
     default:
       return { ...base, type: e.type };

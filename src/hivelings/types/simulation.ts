@@ -26,7 +26,7 @@ export type Entity = EntityBase &
   (
     | Hiveling
     | Trail
-    | { type: EntityType.NUTRITION }
+    | { type: EntityType.FOOD }
     | { type: EntityType.HIVE_ENTRANCE }
     | { type: EntityType.OBSTACLE }
   );
@@ -34,7 +34,7 @@ export type Entity = EntityBase &
 export type EntityDetails =
   | HivelingDetails
   | TrailDetails
-  | { type: EntityType.NUTRITION }
+  | { type: EntityType.FOOD }
   | { type: EntityType.HIVE_ENTRANCE }
   | { type: EntityType.OBSTACLE };
 

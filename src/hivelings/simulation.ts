@@ -15,7 +15,7 @@ import {
   fromHivelingFrameOfReference,
   toHivelingFrameOfReference
 } from "hivelings/transformations";
-import { max, distance, Position, sortBy, Box, roundTo } from "utils";
+import { max, distance, Position, sortBy, Box } from "utils";
 import { Rng } from "rng/laggedFibo";
 import { randomPrintable } from "rng/utils";
 import {
@@ -28,7 +28,7 @@ import {
 } from "config";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
-const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
+const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
 export const sees = (hiveling: Hiveling, p: Position) => {
   const dist = distance(p, hiveling.position);
@@ -118,9 +118,6 @@ export const applyOutput = (
     (e) => -e.zIndex,
     originalState.entities.filter((e) => inArea(hiveling, e, interactionArea))
   );
-  const entitiesInMovementArea = originalState.entities.filter((e) =>
-    inArea(hiveling, e, movementArea)
-  );
 
   const stateAfterDecision = (() => {
     switch (decision.type) {
@@ -140,6 +137,19 @@ export const applyOutput = (
           originalState
         );
       case MOVE:
+        const { distance } = decision;
+        if (distance > 0.41 && distance < 0.43) {
+          debugger;
+        }
+        if (distance <= 0 || distance > 1) {
+          return addScore(-2, originalState);
+        }
+        const entitiesInMovementArea = originalState.entities.filter((e) =>
+          inArea(hiveling, e, {
+            ...movementArea,
+            top: movementArea.top - (1 - distance)
+          })
+        );
         if (entitiesInMovementArea.some((e) => e.type === OBSTACLE)) {
           return addScore(-2, originalState);
         }
@@ -150,9 +160,10 @@ export const applyOutput = (
           updateHiveling(
             hiveling.identifier,
             {
-              position: targetPosition.map((x) =>
-                parseFloat(x.toPrecision(4))
-              ) as Position,
+              position: fromHivelingFrameOfReference(hiveling, [
+                0,
+                distance
+              ]).map((x) => parseFloat(x.toPrecision(4))) as Position,
               zIndex: (entitiesInMovementArea[0]?.zIndex ?? -1) + 1
             },
             originalState
@@ -168,12 +179,12 @@ export const applyOutput = (
         );
       case PICKUP:
         const nutrition = entitiesInInteractionArea.find(
-          (e) => e.type === NUTRITION
+          (e) => e.type === FOOD
         );
-        if (nutrition && !hiveling.hasNutrition) {
+        if (nutrition && !hiveling.hasFood) {
           return updateHiveling(
             hiveling.identifier,
-            { hasNutrition: true },
+            { hasFood: true },
             {
               ...originalState,
               entities: originalState.entities.filter(
@@ -187,23 +198,23 @@ export const applyOutput = (
         const hiveEntrance = entitiesInInteractionArea.find(
           (e) => e.type === HIVE_ENTRANCE
         );
-        if (hiveling.hasNutrition) {
+        if (hiveling.hasFood) {
           if (hiveEntrance) {
             return addScore(
               15,
               updateHiveling(
                 hiveling.identifier,
-                { hasNutrition: false },
+                { hasFood: false },
                 originalState
               )
             );
           }
           return updateHiveling(
             hiveling.identifier,
-            { hasNutrition: false },
+            { hasFood: false },
             addEntity(originalState, {
               position: targetPosition,
-              type: NUTRITION
+              type: FOOD
             })
           );
         }
@@ -228,7 +239,7 @@ export const makeInput = (
   entities: Entity[],
   hiveling: Hiveling
 ): Input => {
-  const { identifier, zIndex, type, hasNutrition, memory64 } = hiveling;
+  const { identifier, zIndex, type, hasFood, memory64 } = hiveling;
   return {
     visibleEntities: entities
       .filter((e) => e.identifier !== identifier && sees(hiveling, e.position))
@@ -237,7 +248,7 @@ export const makeInput = (
       position: [0, 0],
       zIndex,
       type,
-      hasNutrition,
+      hasFood,
       memory64
     },
     randomSeed: randomPrintable(rng, rng.getState().sequence.length)

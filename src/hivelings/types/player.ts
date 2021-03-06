@@ -8,7 +8,7 @@ export interface EntityBase {
 
 export interface HivelingDetails {
   type: EntityType.HIVELING;
-  hasNutrition: boolean;
+  hasFood: boolean;
 }
 export interface CurrentHivelingDetails extends HivelingDetails {
   memory64: string;
@@ -28,7 +28,7 @@ export type Entity = EntityBase &
   (
     | Hiveling
     | Trail
-    | { type: EntityType.NUTRITION }
+    | { type: EntityType.FOOD }
     | { type: EntityType.HIVE_ENTRANCE }
     | { type: EntityType.OBSTACLE }
   );

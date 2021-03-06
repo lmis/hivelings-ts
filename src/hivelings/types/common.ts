@@ -2,7 +2,7 @@ import { Entity, CurrentHiveling } from "hivelings/types/player";
 
 export enum EntityType {
   HIVELING = "HIVELING",
-  NUTRITION = "NUTRITION",
+  FOOD = "FOOD",
   OBSTACLE = "OBSTACLE",
   TRAIL = "TRAIL",
   HIVE_ENTRANCE = "HIVE_ENTRANCE"
@@ -19,7 +19,7 @@ export enum DecisionType {
 export type Decision =
   | { type: DecisionType.TURN; degrees: number }
   | { type: DecisionType.DROP }
-  | { type: DecisionType.MOVE }
+  | { type: DecisionType.MOVE; distance: number }
   | { type: DecisionType.PICKUP }
   | { type: DecisionType.WAIT };
 

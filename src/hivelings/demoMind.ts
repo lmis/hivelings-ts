@@ -9,11 +9,11 @@ import {
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
 import { pickRandom } from "rng/utils";
 import { Box, Position, range, sortBy, takeWhile } from "utils";
-import { toDeg } from "./transformations";
+import { toDeg, degreeDiff } from "./transformations";
 import { Entity } from "./types/player";
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
-const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
+const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
 
 interface Memory {
   recentDecisions: Decision[];
@@ -23,7 +23,9 @@ const serialize = ({ recentDecisions }: Memory): string => {
     .map((d) => {
       switch (d.type) {
         case TURN:
-          return "T" + d.degrees.toString().substring(0, 4);
+          return "T" + d.degrees.toFixed(0);
+        case MOVE:
+          return "M" + d.distance.toFixed(2);
         default:
           return d.type.toString().charAt(0);
       }
@@ -40,13 +42,14 @@ const deserialize = (s: string): Memory => {
     (d): Decision => {
       switch (d.charAt(0)) {
         case "T":
-          const degrees = parseFloat(d.substring(1, 5));
+          const degrees = parseFloat(d.substring(1, 4));
           return {
             type: TURN,
             degrees
           };
         case "M":
-          return { type: MOVE };
+          const distance = parseFloat(d.substring(1, 5));
+          return { type: MOVE, distance };
         case "P":
           return { type: PICKUP };
         case "D":
@@ -62,16 +65,6 @@ const deserialize = (s: string): Memory => {
 };
 
 const distance = ([x, y]: Position): number => Math.sqrt(x * x + y * y);
-const degreeDiff = (a: number, b: number) => {
-  const d1 = a - b;
-  if (d1 > 180) {
-    return 360 - d1;
-  } else if (d1 < -180) {
-    return d1 + 360;
-  } else {
-    return d1;
-  }
-};
 
 // Which way to turn to face position
 const positionToRotation = ([x, y]: Position): number =>
@@ -96,7 +89,10 @@ const walkingCost = ([x, y]: Position) => {
 const goTowards = (position: Position): Decision => {
   const degrees = positionToRotation(position);
   return degrees < 10 || degrees > 350
-    ? { type: MOVE }
+    ? {
+        type: MOVE,
+        distance: Math.min(1, distance(position) - 0.5)
+      }
     : { type: TURN, degrees };
 };
 
@@ -157,7 +153,7 @@ const search = (
   // No target found. Random walk.
   const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
   if (!blockedFront && moveStreak <= 3) {
-    return { type: MOVE };
+    return { type: MOVE, distance: 1 };
   }
   // Random rotation
   const blockedRotations = entitiesInMovementArea
@@ -177,7 +173,7 @@ const search = (
 
 export const hivelingMind = (input: Input): Output => {
   const { visibleEntities, currentHiveling, randomSeed } = input;
-  const { memory64, hasNutrition } = currentHiveling;
+  const { memory64, hasFood } = currentHiveling;
   const rng = makeStdLaggedFibo(randomSeed);
 
   const { recentDecisions } = deserialize(memory64);
@@ -194,22 +190,19 @@ export const hivelingMind = (input: Input): Output => {
 
   // Desired thing in front, interact.
   if (
-    hasNutrition &&
+    hasFood &&
     entitiesInInteractionArea.some((e) => e.type === HIVE_ENTRANCE)
   ) {
     return takeDecision({ type: DROP });
   }
-  if (
-    !hasNutrition &&
-    entitiesInInteractionArea.some((e) => e.type === NUTRITION)
-  ) {
+  if (!hasFood && entitiesInInteractionArea.some((e) => e.type === FOOD)) {
     return takeDecision({ type: PICKUP });
   }
 
   // Go search
   return takeDecision(
     search(
-      hasNutrition ? HIVE_ENTRANCE : NUTRITION,
+      hasFood ? HIVE_ENTRANCE : FOOD,
       visibleEntities,
       recentDecisions,
       rng

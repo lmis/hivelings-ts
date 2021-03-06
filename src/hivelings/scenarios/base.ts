@@ -7,7 +7,7 @@ import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
 
-const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE } = EntityType;
+const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
 
 const startingHivelingPositions = [
   [1, 4],
@@ -31,14 +31,14 @@ const startingNutrition = crossProduct(range(-5, 6), [
 ]) as Position[];
 const startingState: SimulationState = [
   ...startingHivelingPositions.map(
-    (position) =>
+    (position, i) =>
       ({
         position,
         type: HIVELING,
         memory: "",
-        hasNutrition: false,
+        hasFood: false,
         recentDecisions: [],
-        orientation: 0,
+        orientation: (i * 105) % 360,
         memory64: ""
       } as EntityDetailsWithPosition)
   ),
@@ -63,7 +63,7 @@ const startingState: SimulationState = [
     (position) =>
       ({
         position,
-        type: NUTRITION
+        type: FOOD
       } as EntityDetailsWithPosition)
   )
 ].reduce(addEntity, {

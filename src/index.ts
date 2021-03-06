@@ -19,7 +19,6 @@ import {
   positionEquals,
   zip,
   crossProduct,
-  range,
   Box,
   rangeSteps
 } from "utils";
@@ -47,7 +46,7 @@ import {
 import { EntityType, Input, Output } from "hivelings/types/common";
 import { shuffle } from "rng/utils";
 
-const { HIVELING, NUTRITION, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
+const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
 const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
 
@@ -56,7 +55,7 @@ const prettyPrintEntity = (e: Entity): string => {
   switch (e.type) {
     case HIVELING:
       const hivelingProps: (keyof Hiveling)[] = [
-        "hasNutrition",
+        "hasFood",
         "orientation",
         "memory64"
       ];
@@ -308,12 +307,10 @@ const main = async () => {
     entities.forEach((e) => {
       const image = (() => {
         switch (e.type) {
-          case NUTRITION:
+          case FOOD:
             return assets.nutrition;
           case HIVELING:
-            return e.hasNutrition
-              ? assets.hivelingWithNutrition
-              : assets.hiveling;
+            return e.hasFood ? assets.hivelingWithNutrition : assets.hiveling;
           case TRAIL:
             return assets.trail;
           case HIVE_ENTRANCE:
@@ -335,7 +332,10 @@ const main = async () => {
             fromHivelingFrameOfReference(e, [0, 1])
           )
         });
-        const drawBox = ({ left, right, top, bottom }: Box) => {
+        const drawBox = (
+          { left, right, top, bottom }: Box,
+          fillStyle: CanvasRenderingContext2D["fillStyle"]
+        ) => {
           const topLeft: Position = fromHivelingFrameOfReference(e, [
             left,
             top
@@ -362,13 +362,13 @@ const main = async () => {
               renderBuffer,
               transformPositionToPixelSpace(a),
               transformPositionToPixelSpace(b),
-              "black",
+              fillStyle,
               800
             );
           });
         };
-        drawBox(interactionArea);
-        drawBox(movementArea);
+        drawBox(interactionArea, "darkgrey");
+        drawBox(movementArea, "red");
       }
       if (e.type === HIVELING && showVision) {
         crossProduct(
