@@ -3,11 +3,11 @@ import { loadAssets } from "canvas/assets";
 import {
   RenderBuffer,
   drawImage,
-  drawGrid,
   drawRect,
   drawTextbox,
   initializeRenderBuffer,
-  flush
+  flush,
+  drawLine
 } from "canvas/draw";
 import {
   Position,
@@ -19,9 +19,16 @@ import {
   positionEquals,
   zip,
   crossProduct,
-  range
+  range,
+  Box,
+  rangeSteps
 } from "utils";
-import { gameBorders, sightDistance } from "config";
+import {
+  gameBorders,
+  interactionArea,
+  movementArea,
+  sightDistance
+} from "config";
 import { applyOutput, makeInput, sees } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
@@ -32,7 +39,11 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import { toDeg } from "hivelings/transformations";
+import {
+  fromHivelingFrameOfReference,
+  rotate,
+  toRad
+} from "hivelings/transformations";
 import { EntityType, Input, Output } from "hivelings/types/common";
 import { shuffle } from "rng/utils";
 
@@ -68,7 +79,7 @@ export interface GameState {
   cameraPosition: Position;
   speed: number;
   showVision: boolean;
-  showGrid: boolean;
+  showInteractionArea: boolean;
   highlighted: Set<number>;
   quitting: boolean;
   sending: boolean;
@@ -114,7 +125,7 @@ const handleKeyPresses = (
   if (held.has("4")) state.speed = 4;
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
-  if (released.has("g")) state.showGrid = !state.showGrid;
+  if (released.has("i")) state.showInteractionArea = !state.showInteractionArea;
 };
 
 const shouldAdvance = (
@@ -168,7 +179,7 @@ const main = async () => {
     cameraPosition: [0, 0],
     speed: 0,
     showVision: false,
-    showGrid: true,
+    showInteractionArea: false,
     highlighted: new Set(),
     quitting: false,
     sending: false,
@@ -251,7 +262,7 @@ const main = async () => {
       cameraPosition,
       simulationState: { entities },
       showVision,
-      showGrid
+      showInteractionArea
     } = state;
     const canvasWidth = window.innerWidth;
     const canvasHeight = window.innerHeight;
@@ -294,23 +305,7 @@ const main = async () => {
       transformPositionToPixelSpace([0, 0])
     );
 
-    if (showGrid) {
-      drawGrid({
-        renderBuffer,
-        width: scale,
-        height: scale,
-        topLeft: transformPositionToPixelSpace([
-          gameBorders.left,
-          gameBorders.top
-        ]),
-        strokeStyle: "darkgrey",
-        xCells: gameBorders.right - gameBorders.left + 1,
-        yCells: gameBorders.top - gameBorders.bottom + 1,
-        zIndex: 0
-      });
-    }
-
-    sortBy((e: Entity) => e.zIndex, entities).forEach((e) => {
+    entities.forEach((e) => {
       const image = (() => {
         switch (e.type) {
           case NUTRITION:
@@ -328,22 +323,75 @@ const main = async () => {
         }
       })();
       const size = scale;
-      const angle =
-        "orientation" in e ? (toDeg(e.orientation) * Math.PI) / 180 : 0;
+      const angle = "orientation" in e ? toRad(e.orientation) : 0;
+      if (e.type === HIVELING && showInteractionArea) {
+        drawRect({
+          renderBuffer,
+          fillStyle: "red",
+          width: 5,
+          height: 5,
+          zIndex: 800,
+          position: transformPositionToPixelSpace(
+            fromHivelingFrameOfReference(e, [0, 1])
+          )
+        });
+        const drawBox = ({ left, right, top, bottom }: Box) => {
+          const topLeft: Position = fromHivelingFrameOfReference(e, [
+            left,
+            top
+          ]);
+          const topRight: Position = fromHivelingFrameOfReference(e, [
+            right,
+            top
+          ]);
+          const bottomLeft: Position = fromHivelingFrameOfReference(e, [
+            left,
+            bottom
+          ]);
+          const bottomRight: Position = fromHivelingFrameOfReference(e, [
+            right,
+            bottom
+          ]);
+          [
+            [topLeft, topRight],
+            [topLeft, bottomLeft],
+            [topRight, bottomRight],
+            [bottomLeft, bottomRight]
+          ].forEach(([a, b]) => {
+            drawLine(
+              renderBuffer,
+              transformPositionToPixelSpace(a),
+              transformPositionToPixelSpace(b),
+              "black",
+              800
+            );
+          });
+        };
+        drawBox(interactionArea);
+        drawBox(movementArea);
+      }
       if (e.type === HIVELING && showVision) {
         crossProduct(
-          range(e.position[0] - sightDistance, e.position[0] + sightDistance),
-          range(e.position[1] - sightDistance, e.position[1] + sightDistance)
+          rangeSteps(
+            0.5,
+            e.position[0] - sightDistance,
+            e.position[0] + sightDistance
+          ),
+          rangeSteps(
+            0.5,
+            e.position[1] - sightDistance,
+            e.position[1] + sightDistance
+          )
         )
           .filter((p) => sees(e, p))
           .forEach((p) => {
             drawRect({
               renderBuffer,
               position: transformPositionToPixelSpace(p),
-              width: size,
-              height: size,
+              width: size / 10,
+              height: size / 10,
               fillStyle: "rgba(255,255,255,0.5",
-              zIndex: 5
+              zIndex: 500
             });
           });
       }
@@ -355,7 +403,7 @@ const main = async () => {
           width: size,
           height: size,
           fillStyle: "black",
-          zIndex: 1
+          zIndex: e.zIndex
         });
       } else {
         drawImage({
@@ -365,7 +413,7 @@ const main = async () => {
           height: size,
           angle,
           position: [x, y],
-          zIndex: 1
+          zIndex: e.zIndex
         });
       }
     });
@@ -388,12 +436,12 @@ const main = async () => {
       const highlighedPositions = uniqueBy(
         (p) => p.join(","),
         [
-          ...underCursor,
-          ...entities.filter((e) => state.highlighted.has(e.identifier))
+          ...entities.filter((e) => state.highlighted.has(e.identifier)),
+          ...underCursor
         ].map((e) => e.position)
       );
 
-      highlighedPositions.forEach((position) => {
+      highlighedPositions.forEach((position, i) => {
         const lines = sortBy(
           (e) => -e.zIndex,
           entities.filter((e) => positionEquals(e.position, position))
@@ -405,7 +453,7 @@ const main = async () => {
           renderBuffer,
           position: transformPositionToPixelSpace(position),
           lines,
-          zIndex: 10
+          zIndex: 1000 + i
         });
       });
     }

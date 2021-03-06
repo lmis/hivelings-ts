@@ -1,72 +1,50 @@
-import { Rotation, EntityType } from "hivelings/types/common";
-import { Entity } from "hivelings/types/simulation";
+import { EntityType } from "hivelings/types/common";
+import { Entity, Hiveling } from "hivelings/types/simulation";
 import { Entity as PlayerEntity } from "hivelings/types/player";
 import { Position } from "utils";
 
 const { HIVELING, TRAIL } = EntityType;
-const { NONE, CLOCKWISE, BACK, COUNTERCLOCKWISE } = Rotation;
+const { cos, sin } = Math;
 
-export const toDeg = (rotation: Rotation): number => {
-  switch (rotation) {
-    case NONE:
-      return 0;
-    case CLOCKWISE:
-      return 90;
-    case BACK:
-      return 180;
-    case COUNTERCLOCKWISE:
-      return 270;
-  }
-};
-
-export const fromDeg = (degrees: number): Rotation => {
-  switch (degrees) {
-    case 0:
-      return NONE;
-    case 90:
-      return CLOCKWISE;
-    case 180:
-      return BACK;
-    case 270:
-      return COUNTERCLOCKWISE;
-    default:
-      throw new Error(`${degrees} is not convertable to Rotation`);
-  }
-};
-
-export const addRotations = (a: Rotation, b: Rotation): Rotation => {
-  return fromDeg((toDeg(a) + toDeg(b)) % 360);
-};
+export const toDeg = (radians: number): number =>
+  (radians >= 0 ? (radians / Math.PI) * 180 : 360 - toDeg(-radians)) % 360;
+export const toRad = (degrees: number): number =>
+  (degrees >= 0 ? (degrees / 180) * Math.PI : 2 * Math.PI - toRad(-degrees)) %
+  360;
 
 export const relativePosition = (
   [ox, oy]: Position,
   [x, y]: Position
 ): Position => [x - ox, y - oy];
 
-export const inverseRotatePosition = (
-  rotation: Rotation,
-  [x, y]: Position
-): Position => {
-  switch (rotation) {
-    case Rotation.NONE:
-      return [x, y];
-    case Rotation.CLOCKWISE:
-      return [-y, x];
-    case Rotation.COUNTERCLOCKWISE:
-      return [y, -x];
-    case Rotation.BACK:
-      return [-x, -y];
-  }
+export const rotate = (degrees: number, [x, y]: Position): Position => {
+  const radians = toRad(degrees);
+  return [
+    x * cos(radians) + y * sin(radians),
+    -x * sin(radians) + y * cos(radians)
+  ];
 };
 
-export const entityForPlayer = (orientation: Rotation, origin: Position) => (
+export const toHivelingFrameOfReference = (
+  hiveling: Hiveling,
+  p: Position
+): Position =>
+  rotate(-hiveling.orientation, relativePosition(hiveling.position, p));
+
+export const fromHivelingFrameOfReference = (
+  hiveling: Hiveling,
+  p: Position
+): Position => {
+  const [x, y] = rotate(hiveling.orientation, p);
+  return [x + hiveling.position[0], y + hiveling.position[1]];
+};
+
+export const entityForPlayer = (
+  hiveling: Hiveling,
   e: Entity
 ): PlayerEntity => {
   const base = {
-    position: inverseRotatePosition(
-      orientation,
-      relativePosition(origin, e.position)
-    ),
+    position: toHivelingFrameOfReference(hiveling, e.position),
     zIndex: e.zIndex
   };
 
@@ -82,7 +60,8 @@ export const entityForPlayer = (orientation: Rotation, origin: Position) => (
         ...base,
         type: e.type,
         lifetime: e.lifetime,
-        orientation: addRotations(e.orientation, orientation)
+        // TODO: Fix
+        orientation: (e.orientation - hiveling.orientation) % 360
       };
     default:
       return { ...base, type: e.type };

@@ -1,6 +1,5 @@
 import {
   DecisionType,
-  Rotation,
   EntityType,
   Input,
   Output
@@ -12,16 +11,17 @@ import {
   SimulationState
 } from "hivelings/types/simulation";
 import {
-  addRotations,
-  relativePosition,
-  inverseRotatePosition,
-  entityForPlayer
+  entityForPlayer,
+  fromHivelingFrameOfReference,
+  toHivelingFrameOfReference
 } from "hivelings/transformations";
-import { max, maxBy, distance, Position, positionEquals } from "utils";
+import { max, distance, Position, sortBy, Box, roundTo } from "utils";
 import { Rng } from "rng/laggedFibo";
 import { randomPrintable } from "rng/utils";
 import {
   fieldOfView,
+  interactionArea,
+  movementArea,
   peripherialSightDistance,
   peripherialSightFieldOfView,
   sightDistance
@@ -29,19 +29,15 @@ import {
 
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
-const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
-export const sees = ({ position, orientation }: Hiveling, p: Position) => {
-  if (positionEquals(p, position)) {
+export const sees = (hiveling: Hiveling, p: Position) => {
+  const dist = distance(p, hiveling.position);
+  if (dist === 0) {
     return true;
   }
-  const [x, y] = inverseRotatePosition(
-    orientation,
-    relativePosition(position, p)
-  );
+  const [x, y] = toHivelingFrameOfReference(hiveling, p);
 
   const angle = Math.abs(Math.atan2(x, y));
-  const dist = distance(position, p);
   const inSight = angle <= fieldOfView / 2 && dist <= sightDistance;
   const inPeripheralView =
     angle <= peripherialSightFieldOfView / 2 &&
@@ -66,7 +62,7 @@ export const addEntity = (
         1 +
           (max(
             entities
-              .filter((e) => positionEquals(e.position, entity.position))
+              .filter((e) => distance(e.position, entity.position) < 1)
               .map((e) => e.zIndex)
           ) ?? -1)
       )
@@ -101,90 +97,98 @@ const fadeTrails = (
     .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
 });
 
+const inArea = (
+  hiveling: Hiveling,
+  entity: Entity,
+  { left, right, top, bottom }: Box
+) => {
+  const [x, y] = toHivelingFrameOfReference(hiveling, entity.position);
+  return x > left && x < right && y > bottom && y < top;
+};
+
 export const applyOutput = (
   originalState: SimulationState,
   [{ decision, memory64 }, hiveling]: [Output, Hiveling]
 ): SimulationState => {
-  const targetPos = ((): Position => {
-    const [x, y] = hiveling.position;
-    switch (hiveling.orientation) {
-      case NONE:
-        return [x, y + 1];
-      case CLOCKWISE:
-        return [x + 1, y];
-      case BACK:
-        return [x, y - 1];
-      case COUNTERCLOCKWISE:
-        return [x - 1, y];
-    }
-  })();
-
-  const topEntityAtTarget = maxBy(
-    (e: Entity) => e.zIndex,
-    originalState.entities.filter(
-      (e) =>
-        positionEquals(e.position, targetPos) &&
-        e.identifier !== hiveling.identifier
-    )
+  const targetPosition: Position = fromHivelingFrameOfReference(hiveling, [
+    0,
+    1
+  ]);
+  const entitiesInInteractionArea = sortBy(
+    (e) => -e.zIndex,
+    originalState.entities.filter((e) => inArea(hiveling, e, interactionArea))
   );
+  const entitiesInMovementArea = originalState.entities.filter((e) =>
+    inArea(hiveling, e, movementArea)
+  );
+
   const stateAfterDecision = (() => {
     switch (decision.type) {
       case WAIT:
         return addScore(-1, originalState);
       case TURN:
-        if (decision.rotation === NONE) {
+        const degrees =
+          decision.degrees < 0
+            ? 360 - (-decision.degrees % 360)
+            : decision.degrees % 360;
+        if (degrees === 0) {
           return addScore(-2, originalState);
         }
         return updateHiveling(
           hiveling.identifier,
-          {
-            orientation: addRotations(hiveling.orientation, decision.rotation)
-          },
+          { orientation: (hiveling.orientation + degrees) % 360 },
           originalState
         );
       case MOVE:
-        switch (topEntityAtTarget?.type) {
-          case OBSTACLE:
-            return addScore(-2, originalState);
-          case HIVELING:
-            return originalState;
-          default:
-            return addEntity(
-              updateHiveling(
-                hiveling.identifier,
-                {
-                  position: targetPos,
-                  zIndex: topEntityAtTarget ? topEntityAtTarget.zIndex + 1 : 0
-                },
-                originalState
-              ),
-              {
-                type: TRAIL,
-                lifetime: 4,
-                position: hiveling.position,
-                orientation: hiveling.orientation,
-                hivelingId: hiveling.identifier
-              },
-              hiveling.zIndex - 1
-            );
+        if (entitiesInMovementArea.some((e) => e.type === OBSTACLE)) {
+          return addScore(-2, originalState);
         }
+        if (entitiesInMovementArea.some((e) => e.type === HIVELING)) {
+          return originalState;
+        }
+        return addEntity(
+          updateHiveling(
+            hiveling.identifier,
+            {
+              position: targetPosition.map((x) =>
+                roundTo(x, 0.001)
+              ) as Position,
+              zIndex: (entitiesInMovementArea[0]?.zIndex ?? -1) + 1
+            },
+            originalState
+          ),
+          {
+            type: TRAIL,
+            lifetime: 4,
+            position: hiveling.position,
+            orientation: hiveling.orientation,
+            hivelingId: hiveling.identifier
+          },
+          hiveling.zIndex - 1
+        );
       case PICKUP:
-        if (topEntityAtTarget?.type === NUTRITION && !hiveling.hasNutrition) {
+        const nutrition = entitiesInInteractionArea.find(
+          (e) => e.type === NUTRITION
+        );
+        if (nutrition && !hiveling.hasNutrition) {
           return updateHiveling(
             hiveling.identifier,
             { hasNutrition: true },
             {
               ...originalState,
               entities: originalState.entities.filter(
-                (e) => e.identifier !== topEntityAtTarget.identifier
+                (e) => e.identifier !== nutrition.identifier
               )
             }
           );
         }
-        return originalState;
+        return addScore(-1, originalState);
       case DROP:
+        const hiveEntrance = entitiesInInteractionArea.find(
+          (e) => e.type === HIVE_ENTRANCE
+        );
         if (hiveling.hasNutrition) {
-          if (topEntityAtTarget?.type === HIVE_ENTRANCE) {
+          if (hiveEntrance) {
             return addScore(
               15,
               updateHiveling(
@@ -198,12 +202,12 @@ export const applyOutput = (
             hiveling.identifier,
             { hasNutrition: false },
             addEntity(originalState, {
-              position: targetPos,
+              position: targetPosition,
               type: NUTRITION
             })
           );
         }
-        return originalState;
+        return addScore(-2, originalState);
     }
   })();
 
@@ -224,19 +228,11 @@ export const makeInput = (
   entities: Entity[],
   hiveling: Hiveling
 ): Input => {
-  const {
-    position,
-    orientation,
-    identifier,
-    zIndex,
-    type,
-    hasNutrition,
-    memory64
-  } = hiveling;
+  const { identifier, zIndex, type, hasNutrition, memory64 } = hiveling;
   return {
     visibleEntities: entities
       .filter((e) => e.identifier !== identifier && sees(hiveling, e.position))
-      .map(entityForPlayer(orientation, position)),
+      .map((e) => entityForPlayer(hiveling, e)),
     currentHiveling: {
       position: [0, 0],
       zIndex,

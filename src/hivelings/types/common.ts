@@ -1,12 +1,5 @@
 import { Entity, CurrentHiveling } from "hivelings/types/player";
 
-export enum Rotation {
-  NONE = "NONE",
-  CLOCKWISE = "CLOCKWISE",
-  BACK = "BACK",
-  COUNTERCLOCKWISE = "COUNTERCLOCKWISE"
-}
-
 export enum EntityType {
   HIVELING = "HIVELING",
   NUTRITION = "NUTRITION",
@@ -24,7 +17,7 @@ export enum DecisionType {
 }
 
 export type Decision =
-  | { type: DecisionType.TURN; rotation: Rotation }
+  | { type: DecisionType.TURN; degrees: number }
   | { type: DecisionType.DROP }
   | { type: DecisionType.MOVE }
   | { type: DecisionType.PICKUP }

@@ -1,5 +1,5 @@
 export type Position = [number, number];
-export const inexhaustive = (_: never): void => {};
+export type Box = { left: number; right: number; top: number; bottom: number };
 
 export const wait = (millis: number) =>
   new Promise((resolve) => setTimeout(resolve, millis));
@@ -7,7 +7,7 @@ export const wait = (millis: number) =>
 export const fuzzyEqual = (a: number, b: number, tol: number) =>
   Math.abs(a - b) < tol;
 
-export const roundTo = (a: number, precision: number) =>
+export const roundTo = (a: number, precision: number): number =>
   precision === 0 ? a : Math.round(a / precision) * precision;
 export const positionFuzzyEqual = (
   [xa, ya]: Position,
@@ -28,6 +28,12 @@ export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
 
 export const range = (lower: number, upper: number) =>
   Array.from({ length: upper - lower }, (_, i) => i + lower);
+
+export const rangeSteps = (stepSize: number, lower: number, upper: number) =>
+  Array.from(
+    { length: (upper - lower) / stepSize },
+    (_, i) => i * stepSize + lower
+  );
 
 export const zip = <T, S>(xs: T[], ys: S[]): [T, S][] => {
   const res = [];

@@ -1,4 +1,4 @@
-import { Rotation, EntityType } from "hivelings/types/common";
+import { EntityType } from "hivelings/types/common";
 import {
   EntityBase as PlayerEntityBase,
   CurrentHivelingDetails as PlayerHivelingDetails,
@@ -12,8 +12,8 @@ export interface EntityBase extends PlayerEntityBase {
 }
 
 export interface HivelingDetails extends PlayerHivelingDetails {
-  // Rotation w.r.t North
-  orientation: Rotation;
+  // Degrees w.r.t North
+  orientation: number;
 }
 export type Hiveling = EntityBase & HivelingDetails;
 

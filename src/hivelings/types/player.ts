@@ -1,4 +1,4 @@
-import { EntityType, Rotation } from "hivelings/types/common";
+import { EntityType } from "hivelings/types/common";
 import { Position } from "utils";
 
 export interface EntityBase {
@@ -20,7 +20,7 @@ export type CurrentHiveling = EntityBase & CurrentHivelingDetails;
 export interface TrailDetails {
   type: EntityType.TRAIL;
   lifetime: number;
-  orientation: Rotation;
+  orientation: number;
 }
 export type Trail = EntityBase & TrailDetails;
 

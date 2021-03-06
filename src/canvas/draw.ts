@@ -144,8 +144,8 @@ export const drawTextbox = ({
   const lineheight = 18;
   const font = `${lineheight}px Georgia`;
   const yPadding = 10;
-  const yOffset = lineheight * lines.length;
-  const height = yOffset + yPadding;
+  const yOffset = 25 + 0.5 * lines.length * lineheight;
+  const height = lineheight * lines.length + yPadding;
   const width =
     (lineheight / 2) * Math.min(240, Math.max(...lines.map((l) => l.length)));
 

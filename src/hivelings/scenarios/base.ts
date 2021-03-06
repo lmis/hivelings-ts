@@ -1,5 +1,8 @@
-import { EntityType, Rotation } from "hivelings/types/common";
-import { EntityDetailsWithPosition, SimulationState } from "hivelings/types/simulation";
+import { EntityType } from "hivelings/types/common";
+import {
+  EntityDetailsWithPosition,
+  SimulationState
+} from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
@@ -35,7 +38,7 @@ const startingState: SimulationState = [
         memory: "",
         hasNutrition: false,
         recentDecisions: [],
-        orientation: Rotation.NONE,
+        orientation: 0,
         memory64: ""
       } as EntityDetailsWithPosition)
   ),
