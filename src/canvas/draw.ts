@@ -1,64 +1,92 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-import { Position } from "utils";
+import { Position, sortBy } from "utils";
+
+interface RenderCommand {
+  action: (ctx: CanvasRenderingContext2D) => void;
+  zIndex: number;
+}
+export type RenderBuffer = RenderCommand[];
+export const initializeRenderBuffer = (): RenderBuffer => [];
+export const flush = (
+  ctx: CanvasRenderingContext2D,
+  renderBuffer: RenderBuffer
+) => {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  sortBy((c) => c.zIndex, renderBuffer).forEach(({ action }) => {
+    action(ctx);
+  });
+};
 
 interface DrawImageParams {
-  ctx: CanvasRenderingContext2D;
-  alpha: number;
+  renderBuffer: RenderBuffer;
   image: CanvasImageSource;
   angle: number;
   position: [number, number];
   width: number;
   height: number;
+  zIndex: number;
 }
 export const drawImage = ({
-  ctx,
-  alpha,
+  renderBuffer,
   image,
   width,
   height,
   angle,
-  position: [x, y]
+  position: [x, y],
+  zIndex
 }: DrawImageParams) => {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  ctx.translate(-x, -y);
-  ctx.drawImage(image, x - width / 2, y - height / 2, width, height);
-  ctx.restore();
+  renderBuffer.push({
+    action: (ctx) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.translate(-x, -y);
+      ctx.drawImage(image, x - width / 2, y - height / 2, width, height);
+      ctx.restore();
+    },
+    zIndex
+  });
 };
 
 export const drawLine = (
-  ctx: CanvasRenderingContext2D,
+  renderBuffer: RenderBuffer,
   [xStart, yStart]: Position,
   [xEnd, yEnd]: Position,
-  strokeStyle: CanvasRenderingContext2D["strokeStyle"]
+  strokeStyle: CanvasRenderingContext2D["strokeStyle"],
+  zIndex: number
 ) => {
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(xStart, yStart);
-  ctx.lineTo(xEnd, yEnd);
-  ctx.strokeStyle = strokeStyle;
-  ctx.stroke();
-  ctx.restore();
+  renderBuffer.push({
+    action: (ctx) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(xStart, yStart);
+      ctx.lineTo(xEnd, yEnd);
+      ctx.strokeStyle = strokeStyle;
+      ctx.stroke();
+      ctx.restore();
+    },
+    zIndex
+  });
 };
 
 export const drawGrid = ({
-  ctx,
+  renderBuffer,
   width,
   height,
   xCells,
   yCells,
   topLeft,
-  strokeStyle
+  strokeStyle,
+  zIndex
 }: {
-  ctx: CanvasRenderingContext2D;
+  renderBuffer: RenderBuffer;
   width: number;
   height: number;
   xCells: number;
   yCells: number;
   topLeft: Position;
   strokeStyle: CanvasRenderingContext2D["strokeStyle"];
+  zIndex: number;
 }) => {
   const xMin = topLeft[0] - width / 2;
   const xMax = xMin + xCells * width;
@@ -67,41 +95,50 @@ export const drawGrid = ({
 
   for (let i = 0; i <= xCells; ++i) {
     const x = xMin + i * width;
-    drawLine(ctx, [x, yMin], [x, yMax], strokeStyle);
+    drawLine(renderBuffer, [x, yMin], [x, yMax], strokeStyle, zIndex);
   }
   for (let i = 0; i <= yCells; ++i) {
     const y = yMin + i * height;
-    drawLine(ctx, [xMin, y], [xMax, y], strokeStyle);
+    drawLine(renderBuffer, [xMin, y], [xMax, y], strokeStyle, zIndex);
   }
 };
 
 export const drawRect = ({
-  ctx,
+  renderBuffer,
   width,
   height,
   fillStyle,
-  position: [x, y]
+  position: [x, y],
+  zIndex
 }: {
-  ctx: CanvasRenderingContext2D;
+  renderBuffer: RenderBuffer;
   width: number;
   height: number;
   fillStyle: CanvasRenderingContext2D["fillStyle"];
   position: Position;
+  zIndex: number;
 }) => {
-  ctx.save();
-  ctx.fillStyle = fillStyle;
-  ctx.fillRect(x - width / 2, y - height / 2, width, height);
-  ctx.restore();
+  renderBuffer.push({
+    action: (ctx) => {
+      ctx.save();
+      ctx.fillStyle = fillStyle;
+      ctx.fillRect(x - width / 2, y - height / 2, width, height);
+      ctx.restore();
+    },
+    zIndex
+  });
 };
 
 export const drawTextbox = ({
-  ctx,
+  renderBuffer,
   position: [x, y],
-  lines
+  lines,
+  zIndex
 }: {
-  ctx: CanvasRenderingContext2D;
+  renderBuffer: RenderBuffer;
   position: Position;
   lines: string[];
+  zIndex: number;
 }) => {
   const borderThickness = 2;
   const lineheight = 18;
@@ -112,33 +149,40 @@ export const drawTextbox = ({
   const width =
     (lineheight / 2) * Math.min(240, Math.max(...lines.map((l) => l.length)));
 
-  ctx.save();
   // Border
   drawRect({
-    ctx,
+    renderBuffer,
     fillStyle: "white",
     width,
     height,
-    position: [x, y - yOffset]
+    position: [x, y - yOffset],
+    zIndex: zIndex - 0.5
   });
   // Background
   drawRect({
-    ctx,
+    renderBuffer,
     fillStyle: "black",
     width: width - borderThickness,
     height: height - borderThickness,
-    position: [x, y - yOffset]
+    position: [x, y - yOffset],
+    zIndex: zIndex - 0.3
   });
 
-  ctx.fillStyle = "white";
-  ctx.font = font;
-  lines.forEach((text, i) => {
-    ctx.fillText(
-      text,
-      x - width / 2 + borderThickness,
-      y - height / 2 - yOffset + (i + 1) * lineheight + borderThickness,
-      width - borderThickness
-    );
+  renderBuffer.push({
+    action: (ctx) => {
+      ctx.save();
+      ctx.fillStyle = "white";
+      ctx.font = font;
+      lines.forEach((text, i) => {
+        ctx.fillText(
+          text,
+          x - width / 2 + borderThickness,
+          y - height / 2 - yOffset + (i + 1) * lineheight + borderThickness,
+          width - borderThickness
+        );
+      });
+      ctx.restore();
+    },
+    zIndex
   });
-  ctx.restore();
 };

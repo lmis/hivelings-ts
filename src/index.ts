@@ -1,6 +1,14 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
 import { loadAssets } from "canvas/assets";
-import { drawImage, drawGrid, drawRect, drawTextbox } from "canvas/draw";
+import {
+  RenderBuffer,
+  drawImage,
+  drawGrid,
+  drawRect,
+  drawTextbox,
+  initializeRenderBuffer,
+  flush
+} from "canvas/draw";
 import {
   Position,
   sortBy,
@@ -68,17 +76,19 @@ export interface GameState {
 }
 
 const drawBackground = (
-  ctx: CanvasRenderingContext2D,
+  renderBuffer: RenderBuffer,
   background: { width: number; height: number },
   scale: number,
-  [x, y]: Position
+  position: Position
 ) => {
-  ctx.save();
-  ctx.fillStyle = "green";
-  const width = background.width * scale;
-  const height = background.height * scale;
-  ctx.fillRect(x - width / 2, y - height / 2, width, height);
-  ctx.restore();
+  drawRect({
+    renderBuffer,
+    fillStyle: "green",
+    width: background.width * scale,
+    height: background.height * scale,
+    position,
+    zIndex: -10
+  });
 };
 
 const handleKeyPresses = (
@@ -86,12 +96,13 @@ const handleKeyPresses = (
   released: Set<string>,
   state: GameState
 ) => {
-  if (held.has("Add") || hasAll(held, ["Shift", "ArrowUp"])) state.scale += 0.4;
+  if (held.has("Add") || hasAll(held, ["Shift", "ArrowUp"]))
+    state.scale = Math.min(state.scale + 0.4, 80);
   if (held.has("Subtract") || hasAll(held, ["Shift", "ArrowDown"]))
-    state.scale -= 0.4;
-  if (held.has("ArrowUp"))
+    state.scale = Math.max(state.scale - 0.4, 1);
+  if (held.has("ArrowUp") && !held.has("Shift"))
     state.cameraPosition[1] = clamp(state.cameraPosition[1] + 0.2, vBounds);
-  if (held.has("ArrowDown"))
+  if (held.has("ArrowDown") && !held.has("Shift"))
     state.cameraPosition[1] = clamp(state.cameraPosition[1] - 0.2, vBounds);
   if (held.has("ArrowLeft"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
@@ -247,7 +258,7 @@ const main = async () => {
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    const renderBuffer = initializeRenderBuffer();
 
     const background = { width: 40, height: 40 };
     const scalePixelsToGameSpace = ([x, y]: Position): Position => [
@@ -277,7 +288,7 @@ const main = async () => {
     ];
 
     drawBackground(
-      ctx,
+      renderBuffer,
       background,
       scale,
       transformPositionToPixelSpace([0, 0])
@@ -285,7 +296,7 @@ const main = async () => {
 
     if (showGrid) {
       drawGrid({
-        ctx,
+        renderBuffer,
         width: scale,
         height: scale,
         topLeft: transformPositionToPixelSpace([
@@ -294,7 +305,8 @@ const main = async () => {
         ]),
         strokeStyle: "darkgrey",
         xCells: gameBorders.right - gameBorders.left + 1,
-        yCells: gameBorders.top - gameBorders.bottom + 1
+        yCells: gameBorders.top - gameBorders.bottom + 1,
+        zIndex: 0
       });
     }
 
@@ -326,32 +338,34 @@ const main = async () => {
           .filter((p) => sees(e, p))
           .forEach((p) => {
             drawRect({
-              ctx,
+              renderBuffer,
               position: transformPositionToPixelSpace(p),
               width: size,
               height: size,
-              fillStyle: "rgba(255,255,255,0.5"
+              fillStyle: "rgba(255,255,255,0.5",
+              zIndex: 5
             });
           });
       }
       const [x, y] = transformPositionToPixelSpace(e.position);
       if (!image) {
         drawRect({
-          ctx,
+          renderBuffer,
           position: [x, y],
           width: size,
           height: size,
-          fillStyle: "black"
+          fillStyle: "black",
+          zIndex: 1
         });
       } else {
         drawImage({
-          ctx,
-          alpha: 1,
+          renderBuffer,
           image,
           width: size,
           height: size,
           angle,
-          position: [x, y]
+          position: [x, y],
+          zIndex: 1
         });
       }
     });
@@ -388,13 +402,15 @@ const main = async () => {
           .join("\n")
           .split("\n");
         drawTextbox({
-          ctx,
+          renderBuffer,
           position: transformPositionToPixelSpace(position),
-          lines
+          lines,
+          zIndex: 10
         });
       });
     }
 
+    flush(ctx, renderBuffer);
     releasedKeys.clear();
     mouse.released = false;
     requestAnimationFrame(handleFrame);

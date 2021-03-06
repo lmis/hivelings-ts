@@ -32,6 +32,9 @@ const { HIVELING, HIVE_ENTRANCE, NUTRITION, OBSTACLE, TRAIL } = EntityType;
 const { NONE, BACK, COUNTERCLOCKWISE, CLOCKWISE } = Rotation;
 
 export const sees = ({ position, orientation }: Hiveling, p: Position) => {
+  if (positionEquals(p, position)) {
+    return true;
+  }
   const [x, y] = inverseRotatePosition(
     orientation,
     relativePosition(position, p)
