@@ -373,12 +373,12 @@ const main = async () => {
       if (e.type === HIVELING && showVision) {
         crossProduct(
           rangeSteps(
-            0.5,
+            0.25,
             e.position[0] - sightDistance,
             e.position[0] + sightDistance
           ),
           rangeSteps(
-            0.5,
+            0.25,
             e.position[1] - sightDistance,
             e.position[1] + sightDistance
           )

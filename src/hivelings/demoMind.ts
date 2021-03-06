@@ -7,7 +7,7 @@ import {
   EntityType
 } from "hivelings/types/common";
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
-import { pickRandom } from "rng/utils";
+import { int32, pickRandom } from "rng/utils";
 import { Box, Position, range, sortBy, takeWhile } from "utils";
 import { toDeg, degreeDiff } from "./transformations";
 import { Entity } from "./types/player";
@@ -17,28 +17,33 @@ const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
 
 interface Memory {
   recentDecisions: Decision[];
+  randomWalk: number;
 }
-const serialize = ({ recentDecisions }: Memory): string => {
-  return recentDecisions
-    .map((d) => {
-      switch (d.type) {
-        case TURN:
-          return "T" + d.degrees.toFixed(0);
-        case MOVE:
-          return "M" + d.distance.toFixed(2);
-        default:
-          return d.type.toString().charAt(0);
-      }
-    })
-    .join(",");
+const serialize = ({ recentDecisions, randomWalk }: Memory): string => {
+  return (
+    `R${randomWalk.toFixed(0)};` +
+    recentDecisions
+      .map((d) => {
+        switch (d.type) {
+          case TURN:
+            return "T" + d.degrees.toFixed(0);
+          case MOVE:
+            return "M" + d.distance.toFixed(2);
+          default:
+            return d.type.toString().charAt(0);
+        }
+      })
+      .join(",")
+  );
 };
 
 const deserialize = (s: string): Memory => {
   if (s === "") {
-    return { recentDecisions: [] };
+    return { recentDecisions: [], randomWalk: 0 };
   }
-
-  const recentDecisions = s.split(",").map(
+  const parts = s.split(";");
+  const randomWalk = parseFloat(parts[0].substr(1, 2));
+  const recentDecisions = parts[1].split(",").map(
     (d): Decision => {
       switch (d.charAt(0)) {
         case "T":
@@ -61,7 +66,7 @@ const deserialize = (s: string): Memory => {
       }
     }
   );
-  return { recentDecisions };
+  return { recentDecisions, randomWalk };
 };
 
 const distance = ([x, y]: Position): number => Math.sqrt(x * x + y * y);
@@ -102,17 +107,49 @@ const blocks = (entityType: EntityType | undefined | null) =>
 const inArea = ([x, y]: Position, { left, right, top, bottom }: Box) =>
   x > left && x < right && y > bottom && y < top;
 
+const doRandomWalk = (
+  rng: Rng,
+  blockedFront: boolean,
+  recentDecisions: Decision[],
+  entitiesInMovementArea: Entity[]
+): Decision => {
+  // No target found. Random walk.
+  const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
+  if (!blockedFront && moveStreak <= 2) {
+    return { type: MOVE, distance: 1 };
+  }
+  // Random rotation
+  const blockedRotations = entitiesInMovementArea
+    .filter((e) => blocks(e.type) && distance(e.position) <= 1)
+    .map((e) => positionToRotation(e.position));
+  const nonBlockedRotations = range(0, 360).filter((r) =>
+    blockedRotations.every((b) => Math.abs(degreeDiff(r, b)) > 10)
+  );
+  // Front bias
+  if (int32(rng, 0, 100) > 25) {
+    const nonBlockedFrontRotation = pickRandom(
+      rng,
+      nonBlockedRotations.filter((r) => degreeDiff(r, 0) <= 90)
+    );
+    if (nonBlockedFrontRotation) {
+      return { type: TURN, degrees: nonBlockedFrontRotation };
+    }
+  }
+  const nonBlockedRotation = pickRandom(rng, nonBlockedRotations);
+  if (nonBlockedRotation) {
+    return { type: TURN, degrees: nonBlockedRotation };
+  }
+  return { type: WAIT };
+};
+
 const search = (
   soughtType: EntityType,
   visibleEntities: Entity[],
+  entitiesInMovementArea: Entity[],
+  blockedFront: boolean,
   recentDecisions: Decision[],
   rng: Rng
 ): Decision => {
-  const entitiesInMovementArea = visibleEntities.filter((e) =>
-    inArea(e.position, movementArea)
-  );
-  const blockedFront = entitiesInMovementArea.some((e) => blocks(e.type));
-
   // Find reachable target.
   const reachableTarget = pickRandom(
     rng,
@@ -151,24 +188,12 @@ const search = (
   }
 
   // No target found. Random walk.
-  const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
-  if (!blockedFront && moveStreak <= 3) {
-    return { type: MOVE, distance: 1 };
-  }
-  // Random rotation
-  const blockedRotations = entitiesInMovementArea
-    .filter((e) => blocks(e.type) && distance(e.position) <= 1)
-    .map((e) => positionToRotation(e.position));
-  const nonBlockedRotation = pickRandom(
+  return doRandomWalk(
     rng,
-    range(0, 360).filter((r) =>
-      blockedRotations.every((b) => Math.abs(degreeDiff(r, b)) > 10)
-    )
+    blockedFront,
+    recentDecisions,
+    entitiesInMovementArea
   );
-  if (nonBlockedRotation) {
-    return { type: TURN, degrees: nonBlockedRotation };
-  }
-  return { type: WAIT };
 };
 
 export const hivelingMind = (input: Input): Output => {
@@ -176,11 +201,12 @@ export const hivelingMind = (input: Input): Output => {
   const { memory64, hasFood } = currentHiveling;
   const rng = makeStdLaggedFibo(randomSeed);
 
-  const { recentDecisions } = deserialize(memory64);
-  const takeDecision = (decision: Decision): Output => ({
+  const { recentDecisions, randomWalk } = deserialize(memory64);
+  const takeDecision = (decision: Decision, newRandomWalk: number): Output => ({
     decision,
     memory64: serialize({
-      recentDecisions: [decision, ...recentDecisions.slice(0, 5)]
+      recentDecisions: [decision, ...recentDecisions.slice(0, 5)],
+      randomWalk: newRandomWalk
     })
   });
 
@@ -193,10 +219,24 @@ export const hivelingMind = (input: Input): Output => {
     hasFood &&
     entitiesInInteractionArea.some((e) => e.type === HIVE_ENTRANCE)
   ) {
-    return takeDecision({ type: DROP });
+    return takeDecision({ type: DROP }, 0);
   }
   if (!hasFood && entitiesInInteractionArea.some((e) => e.type === FOOD)) {
-    return takeDecision({ type: PICKUP });
+    return takeDecision({ type: PICKUP }, 0);
+  }
+
+  const shouldResolveDeadlock =
+    recentDecisions.filter((d) => [TURN, WAIT].includes(d.type)).length > 5;
+  const entitiesInMovementArea = visibleEntities.filter((e) =>
+    inArea(e.position, movementArea)
+  );
+  const blockedFront = entitiesInMovementArea.some((e) => blocks(e.type));
+
+  if (randomWalk > 0 || shouldResolveDeadlock) {
+    return takeDecision(
+      doRandomWalk(rng, blockedFront, recentDecisions, entitiesInMovementArea),
+      shouldResolveDeadlock ? 3 : randomWalk - 1
+    );
   }
 
   // Go search
@@ -204,8 +244,11 @@ export const hivelingMind = (input: Input): Output => {
     search(
       hasFood ? HIVE_ENTRANCE : FOOD,
       visibleEntities,
+      entitiesInMovementArea,
+      blockedFront,
       recentDecisions,
       rng
-    )
+    ),
+    0
   );
 };
