@@ -28,7 +28,7 @@ import {
   movementArea,
   sightDistance
 } from "config";
-import { applyOutput, makeInput, sees } from "hivelings/simulation";
+import { applyOutput, makeInput, inFieldOfVision } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
   Entity,
@@ -383,7 +383,7 @@ const main = async () => {
             e.position[1] + sightDistance
           )
         )
-          .filter((p) => sees(e, p))
+          .filter((p) => inFieldOfVision(e, p))
           .forEach((p) => {
             drawRect({
               renderBuffer,

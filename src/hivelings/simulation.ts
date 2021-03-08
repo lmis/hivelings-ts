@@ -30,7 +30,7 @@ import {
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
-export const sees = (hiveling: Hiveling, p: Position) => {
+export const inFieldOfVision = (hiveling: Hiveling, p: Position) => {
   const dist = distance(p, hiveling.position);
   if (dist === 0) {
     return true;
@@ -242,7 +242,10 @@ export const makeInput = (
   const { identifier, zIndex, type, hasFood, memory64 } = hiveling;
   return {
     visibleEntities: entities
-      .filter((e) => e.identifier !== identifier && sees(hiveling, e.position))
+      .filter(
+        (e) =>
+          e.identifier !== identifier && inFieldOfVision(hiveling, e.position)
+      )
       .map((e) => entityForPlayer(hiveling, e)),
     currentHiveling: {
       position: [0, 0],

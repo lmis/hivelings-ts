@@ -50,12 +50,9 @@ export const fromHivelingFrameOfReference = (
   return [x + hiveling.position[0], y + hiveling.position[1]];
 };
 
-export const entityForPlayer = (
-  hiveling: Hiveling,
-  e: Entity
-): PlayerEntity => {
+export const stripSimulationProperties = (e: Entity): PlayerEntity => {
   const base = {
-    position: toHivelingFrameOfReference(hiveling, e.position),
+    position: e.position,
     zIndex: e.zIndex
   };
 
@@ -71,9 +68,28 @@ export const entityForPlayer = (
         ...base,
         type: e.type,
         lifetime: e.lifetime,
-        orientation: degreeDiff(e.orientation, hiveling.orientation)
+        orientation: e.orientation
       };
     default:
       return { ...base, type: e.type };
   }
+};
+export const entityForPlayer = (
+  hiveling: Hiveling,
+  e: Entity
+): PlayerEntity => {
+  const playerEntity = stripSimulationProperties(e);
+  if ("position" in playerEntity) {
+    playerEntity.position = toHivelingFrameOfReference(
+      hiveling,
+      playerEntity.position
+    );
+  }
+  if ("orientation" in playerEntity) {
+    playerEntity.orientation = degreeDiff(
+      playerEntity.orientation,
+      hiveling.orientation
+    );
+  }
+  return playerEntity;
 };
