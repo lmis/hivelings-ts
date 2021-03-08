@@ -49,3 +49,13 @@ export interface SimulationState {
 
 export const isHiveling = (e: Entity): e is Hiveling =>
   e.type === EntityType.HIVELING;
+
+export interface Input {
+  maxMoveDistance: number;
+  interactableEntities: Entity[];
+  visibleEntities: Entity[];
+  currentHiveling: Hiveling;
+  origin: Position;
+  orientation: number;
+  randomSeed: string;
+}

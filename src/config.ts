@@ -26,3 +26,5 @@ export const movementArea = {
   left: -1,
   right: 1
 };
+
+export const debugHiveMind = true;

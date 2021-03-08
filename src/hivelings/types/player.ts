@@ -35,3 +35,11 @@ export type Entity = EntityBase &
 
 export const isHiveling = (e: Entity): e is Hiveling =>
   e.type === EntityType.HIVELING;
+
+export interface Input {
+  maxMoveDistance: number;
+  interactableEntities: Entity[];
+  visibleEntities: Entity[];
+  currentHiveling: CurrentHiveling;
+  randomSeed: string;
+}

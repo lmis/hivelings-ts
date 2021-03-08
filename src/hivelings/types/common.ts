@@ -1,5 +1,3 @@
-import { Entity, CurrentHiveling } from "hivelings/types/player";
-
 export enum EntityType {
   HIVELING = "HIVELING",
   FOOD = "FOOD",
@@ -22,12 +20,6 @@ export type Decision =
   | { type: DecisionType.MOVE; distance: number }
   | { type: DecisionType.PICKUP }
   | { type: DecisionType.WAIT };
-
-export interface Input {
-  visibleEntities: Entity[];
-  currentHiveling: CurrentHiveling;
-  randomSeed: string;
-}
 
 export interface Output {
   decision: Decision;

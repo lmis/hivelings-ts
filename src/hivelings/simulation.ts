@@ -1,24 +1,24 @@
 import {
-  DecisionType,
-  EntityType,
-  Input,
-  Output
-} from "hivelings/types/common";
+  Input as PlayerInput,
+  Entity as PlayerEntity
+} from "hivelings/types/player";
+import { DecisionType, EntityType, Output } from "hivelings/types/common";
 import {
   Entity,
   Hiveling,
   EntityDetailsWithPosition,
-  SimulationState
+  SimulationState,
+  Input
 } from "hivelings/types/simulation";
 import {
-  entityForPlayer,
+  degreeDiff,
   fromHivelingFrameOfReference,
   toHivelingFrameOfReference
 } from "hivelings/transformations";
-import { max, distance, Position, sortBy, Box } from "utils";
-import { Rng } from "rng/laggedFibo";
+import { max, distance, Position, Box } from "utils";
 import { randomPrintable } from "rng/utils";
 import {
+  debugHiveMind,
   fieldOfView,
   interactionArea,
   movementArea,
@@ -30,12 +30,15 @@ import {
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
-export const inFieldOfVision = (hiveling: Hiveling, p: Position) => {
-  const dist = distance(p, hiveling.position);
+export const inFieldOfVision = (
+  { position, orientation }: Hiveling,
+  p: Position
+) => {
+  const dist = distance(p, position);
   if (dist === 0) {
     return true;
   }
-  const [x, y] = toHivelingFrameOfReference(hiveling, p);
+  const [x, y] = toHivelingFrameOfReference(position, orientation, p);
 
   const angle = Math.abs(Math.atan2(x, y));
   const inSight = angle <= fieldOfView / 2 && dist <= sightDistance;
@@ -45,10 +48,17 @@ export const inFieldOfVision = (hiveling: Hiveling, p: Position) => {
   return inSight || inPeripheralView;
 };
 
+const nextZIndex = (entities: Entity[], target: Position): number =>
+  1 +
+  (max(
+    entities
+      .filter((e) => distance(e.position, target) < 1)
+      .map((e) => e.zIndex)
+  ) ?? -1);
+
 export const addEntity = (
   { nextId, entities, ...state }: SimulationState,
-  entity: EntityDetailsWithPosition,
-  zMax: number = Infinity
+  entity: EntityDetailsWithPosition
 ): SimulationState => ({
   ...state,
   nextId: nextId + 1,
@@ -57,15 +67,7 @@ export const addEntity = (
     {
       ...entity,
       identifier: nextId,
-      zIndex: Math.min(
-        zMax,
-        1 +
-          (max(
-            entities
-              .filter((e) => distance(e.position, entity.position) < 1)
-              .map((e) => e.zIndex)
-          ) ?? -1)
-      )
+      zIndex: nextZIndex(entities, entity.position)
     }
   ]
 });
@@ -97,26 +99,23 @@ const fadeTrails = (
     .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
 });
 
-const inArea = (
-  hiveling: Hiveling,
-  entity: Entity,
-  { left, right, top, bottom }: Box
-) => {
-  const [x, y] = toHivelingFrameOfReference(hiveling, entity.position);
-  return x > left && x < right && y > bottom && y < top;
-};
-
 export const applyOutput = (
   originalState: SimulationState,
-  [{ decision, memory64 }, hiveling]: [Output, Hiveling]
+  [
+    {
+      interactableEntities,
+      maxMoveDistance,
+      currentHiveling,
+      origin,
+      orientation
+    },
+    { decision, memory64 }
+  ]: [Input, Output]
 ): SimulationState => {
-  const targetPosition: Position = fromHivelingFrameOfReference(hiveling, [
-    0,
-    1
-  ]);
-  const entitiesInInteractionArea = sortBy(
-    (e) => -e.zIndex,
-    originalState.entities.filter((e) => inArea(hiveling, e, interactionArea))
+  const targetPosition: Position = fromHivelingFrameOfReference(
+    origin,
+    orientation,
+    [0, 1]
   );
 
   const stateAfterDecision = (() => {
@@ -132,58 +131,40 @@ export const applyOutput = (
           return addScore(-2, originalState);
         }
         return updateHiveling(
-          hiveling.identifier,
-          { orientation: (hiveling.orientation + degrees) % 360 },
+          currentHiveling.identifier,
+          { orientation: (orientation + degrees) % 360 },
           originalState
         );
       case MOVE:
-        const { distance } = decision;
-        if (distance > 0.41 && distance < 0.43) {
-          debugger;
-        }
-        if (distance <= 0 || distance > 1) {
+        const dist = decision.distance;
+        if (dist <= 0 || dist > maxMoveDistance) {
           return addScore(-2, originalState);
-        }
-        const entitiesInMovementArea = originalState.entities.filter((e) =>
-          inArea(hiveling, e, {
-            ...movementArea,
-            top: movementArea.top - (1 - distance)
-          })
-        );
-        if (entitiesInMovementArea.some((e) => e.type === OBSTACLE)) {
-          return addScore(-2, originalState);
-        }
-        if (entitiesInMovementArea.some((e) => e.type === HIVELING)) {
-          return originalState;
         }
         return addEntity(
           updateHiveling(
-            hiveling.identifier,
+            currentHiveling.identifier,
             {
-              position: fromHivelingFrameOfReference(hiveling, [
+              position: fromHivelingFrameOfReference(origin, orientation, [
                 0,
-                distance
-              ]).map((x) => parseFloat(x.toPrecision(4))) as Position,
-              zIndex: (entitiesInMovementArea[0]?.zIndex ?? -1) + 1
+                dist
+              ]).map((x) => parseFloat(x.toFixed(3))) as Position,
+              zIndex: nextZIndex(originalState.entities, targetPosition)
             },
             originalState
           ),
           {
             type: TRAIL,
             lifetime: 4,
-            position: hiveling.position,
-            orientation: hiveling.orientation,
-            hivelingId: hiveling.identifier
-          },
-          hiveling.zIndex - 1
+            hivelingId: currentHiveling.identifier,
+            position: origin,
+            orientation
+          }
         );
       case PICKUP:
-        const nutrition = entitiesInInteractionArea.find(
-          (e) => e.type === FOOD
-        );
-        if (nutrition && !hiveling.hasFood) {
+        const nutrition = interactableEntities.find((e) => e.type === FOOD);
+        if (nutrition && !currentHiveling.hasFood) {
           return updateHiveling(
-            hiveling.identifier,
+            currentHiveling.identifier,
             { hasFood: true },
             {
               ...originalState,
@@ -195,22 +176,22 @@ export const applyOutput = (
         }
         return addScore(-1, originalState);
       case DROP:
-        const hiveEntrance = entitiesInInteractionArea.find(
+        const hiveEntrance = interactableEntities.find(
           (e) => e.type === HIVE_ENTRANCE
         );
-        if (hiveling.hasFood) {
+        if (currentHiveling.hasFood) {
           if (hiveEntrance) {
             return addScore(
               15,
               updateHiveling(
-                hiveling.identifier,
+                currentHiveling.identifier,
                 { hasFood: false },
                 originalState
               )
             );
           }
           return updateHiveling(
-            hiveling.identifier,
+            currentHiveling.identifier,
             { hasFood: false },
             addEntity(originalState, {
               position: targetPosition,
@@ -223,9 +204,9 @@ export const applyOutput = (
   })();
 
   return fadeTrails(
-    hiveling.identifier,
+    currentHiveling.identifier,
     updateHiveling(
-      hiveling.identifier,
+      currentHiveling.identifier,
       {
         memory64: memory64.substring(0, 64)
       },
@@ -234,26 +215,106 @@ export const applyOutput = (
   );
 };
 
+const inArea = (entity: Entity, { left, right, top, bottom }: Box) => {
+  const [x, y] = entity.position;
+  return x > left && x < right && y > bottom && y < top;
+};
+
 export const makeInput = (
-  rng: Rng,
-  entities: Entity[],
+  { rng, entities }: SimulationState,
   hiveling: Hiveling
 ): Input => {
-  const { identifier, zIndex, type, hasFood, memory64 } = hiveling;
-  return {
-    visibleEntities: entities
-      .filter(
+  const { identifier, position, orientation } = hiveling;
+  const visibleEntities = entities
+    .filter(
+      (e) =>
+        e.identifier !== identifier && inFieldOfVision(hiveling, e.position)
+    )
+    .map((e) => ({
+      ...e,
+      position: toHivelingFrameOfReference(position, orientation, e.position),
+      ...("orientation" in e
+        ? { orientation: degreeDiff(e.orientation, orientation) }
+        : {})
+    }));
+  const interactableEntities = visibleEntities.filter((e) =>
+    inArea(e, interactionArea)
+  );
+  // TODO: Avoid bisection?
+  let maxMoveDistance = 1;
+  let upper = 1;
+  let lower = 0;
+  while (upper - lower > 0.01) {
+    if (
+      visibleEntities.some(
         (e) =>
-          e.identifier !== identifier && inFieldOfVision(hiveling, e.position)
+          [HIVELING, OBSTACLE].includes(e.type) &&
+          inArea(e, {
+            ...movementArea,
+            top: movementArea.top - (1 - maxMoveDistance)
+          })
       )
-      .map((e) => entityForPlayer(hiveling, e)),
+    ) {
+      upper = maxMoveDistance;
+    } else {
+      lower = maxMoveDistance;
+    }
+    maxMoveDistance = (upper - lower) / 2 + lower;
+  }
+  return {
+    maxMoveDistance,
+    interactableEntities,
+    visibleEntities,
     currentHiveling: {
-      position: [0, 0],
-      zIndex,
-      type,
-      hasFood,
-      memory64
+      ...hiveling,
+      orientation: 0,
+      position: [0, 0]
     },
-    randomSeed: randomPrintable(rng, rng.getState().sequence.length)
+    randomSeed: randomPrintable(rng, rng.getState().sequence.length),
+    origin: position,
+    orientation
+  };
+};
+
+const stripSimulationEntityProps = (e: Entity): PlayerEntity => {
+  const base = {
+    position: e.position,
+    zIndex: e.zIndex
+  };
+  switch (e.type) {
+    case HIVELING:
+      return {
+        ...base,
+        type: e.type,
+        hasFood: e.hasFood
+      };
+    case TRAIL:
+      return {
+        ...base,
+        type: e.type,
+        orientation: e.orientation,
+        lifetime: e.lifetime
+      };
+    default:
+      return { ...base, type: e.type };
+  }
+};
+export const stripSimulationProps = (input: Input): PlayerInput => {
+  if (debugHiveMind) {
+    return input as any;
+  }
+  const {
+    maxMoveDistance,
+    interactableEntities,
+    visibleEntities,
+    currentHiveling: { position, zIndex, type, hasFood, memory64 },
+    randomSeed
+  } = input;
+  return {
+    maxMoveDistance,
+    interactableEntities: interactableEntities.map(stripSimulationEntityProps),
+    visibleEntities: visibleEntities.map(stripSimulationEntityProps),
+    currentHiveling: { position, zIndex, type, hasFood, memory64 },
+    randomSeed
   };
 };

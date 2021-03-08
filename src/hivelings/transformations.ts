@@ -1,9 +1,5 @@
-import { EntityType } from "hivelings/types/common";
-import { Entity, Hiveling } from "hivelings/types/simulation";
-import { Entity as PlayerEntity } from "hivelings/types/player";
 import { Position } from "utils";
 
-const { HIVELING, TRAIL } = EntityType;
 const { cos, sin } = Math;
 
 export const toDeg = (radians: number): number =>
@@ -23,11 +19,6 @@ export const degreeDiff = (a: number, b: number) => {
   }
 };
 
-export const relativePosition = (
-  [ox, oy]: Position,
-  [x, y]: Position
-): Position => [x - ox, y - oy];
-
 export const rotate = (degrees: number, [x, y]: Position): Position => {
   const radians = toRad(degrees);
   return [
@@ -37,59 +28,16 @@ export const rotate = (degrees: number, [x, y]: Position): Position => {
 };
 
 export const toHivelingFrameOfReference = (
-  hiveling: Hiveling,
-  p: Position
-): Position =>
-  rotate(-hiveling.orientation, relativePosition(hiveling.position, p));
+  [ox, oy]: Position,
+  orientation: number,
+  [x, y]: Position
+): Position => rotate(-orientation, [x - ox, y - oy]);
 
 export const fromHivelingFrameOfReference = (
-  hiveling: Hiveling,
+  [ox, oy]: Position,
+  orientation: number,
   p: Position
 ): Position => {
-  const [x, y] = rotate(hiveling.orientation, p);
-  return [x + hiveling.position[0], y + hiveling.position[1]];
-};
-
-export const stripSimulationProperties = (e: Entity): PlayerEntity => {
-  const base = {
-    position: e.position,
-    zIndex: e.zIndex
-  };
-
-  switch (e.type) {
-    case HIVELING:
-      return {
-        ...base,
-        type: e.type,
-        hasFood: e.hasFood
-      };
-    case TRAIL:
-      return {
-        ...base,
-        type: e.type,
-        lifetime: e.lifetime,
-        orientation: e.orientation
-      };
-    default:
-      return { ...base, type: e.type };
-  }
-};
-export const entityForPlayer = (
-  hiveling: Hiveling,
-  e: Entity
-): PlayerEntity => {
-  const playerEntity = stripSimulationProperties(e);
-  if ("position" in playerEntity) {
-    playerEntity.position = toHivelingFrameOfReference(
-      hiveling,
-      playerEntity.position
-    );
-  }
-  if ("orientation" in playerEntity) {
-    playerEntity.orientation = degreeDiff(
-      playerEntity.orientation,
-      hiveling.orientation
-    );
-  }
-  return playerEntity;
+  const [x, y] = rotate(orientation, p);
+  return [x + ox, y + oy];
 };

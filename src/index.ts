@@ -17,7 +17,6 @@ import {
   distance,
   uniqueBy,
   positionEquals,
-  zip,
   crossProduct,
   Box,
   rangeSteps
@@ -28,7 +27,12 @@ import {
   movementArea,
   sightDistance
 } from "config";
-import { applyOutput, makeInput, inFieldOfVision } from "hivelings/simulation";
+import {
+  applyOutput,
+  makeInput,
+  inFieldOfVision,
+  stripSimulationProps
+} from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
   Entity,
@@ -38,12 +42,8 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import {
-  fromHivelingFrameOfReference,
-  rotate,
-  toRad
-} from "hivelings/transformations";
-import { EntityType, Input, Output } from "hivelings/types/common";
+import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
+import { EntityType } from "hivelings/types/common";
 import { shuffle } from "rng/utils";
 
 const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
@@ -161,16 +161,19 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const demoSocket = {
-    onmessage: (_: MessageEvent<string>) => null,
-    send: (data: string) => {
-      const inputs = JSON.parse(data);
-      const outputs = JSON.stringify(inputs.map(demoHiveMind));
-      demoSocket.onmessage({ data: outputs } as any);
-    }
-  };
   const url = new URLSearchParams(window.location.search).get("hive-mind");
-  const socket = url ? new WebSocket(decodeURIComponent(url)) : demoSocket;
+  const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
+  const send = socket
+    ? async (message: string) =>
+        new Promise<string>((resolve) => {
+          socket.onmessage = (event: MessageEvent<string>) => {
+            socket.onmessage = () => null;
+
+            resolve(event.data);
+          };
+          socket.send(message);
+        })
+    : (message: string) => JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
@@ -232,25 +235,23 @@ const main = async () => {
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
       state.sending = true;
-      const { simulationState } = state;
-      const { rng, entities } = simulationState;
+      const { rng, entities } = state.simulationState;
       const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
-      const inputs: Input[] = shuffledHivelings.map((h) =>
-        makeInput(rng, entities, h)
-      );
-
-      socket.onmessage = (event: MessageEvent<string>) => {
-        socket.onmessage = () => null;
-
-        const outputs: Output[] = JSON.parse(event.data);
-        state.simulationState = zip(outputs, shuffledHivelings).reduce(
-          applyOutput,
-          simulationState
-        );
+      (async () => {
+        for (const h of shuffledHivelings) {
+          const input = makeInput(state.simulationState, h);
+          const output = JSON.parse(
+            await send(JSON.stringify(stripSimulationProps(input)))
+          );
+          state.simulationState = applyOutput(state.simulationState, [
+            input,
+            output
+          ]);
+        }
         state.sending = false;
-      };
-      socket.send(JSON.stringify(inputs));
+      })();
+
       state.framesSinceLastAdvance = 0;
     } else {
       state.framesSinceLastAdvance += 1;
@@ -329,29 +330,33 @@ const main = async () => {
           height: 5,
           zIndex: 800,
           position: transformPositionToPixelSpace(
-            fromHivelingFrameOfReference(e, [0, 1])
+            fromHivelingFrameOfReference(e.position, e.orientation, [0, 1])
           )
         });
         const drawBox = (
           { left, right, top, bottom }: Box,
           fillStyle: CanvasRenderingContext2D["fillStyle"]
         ) => {
-          const topLeft: Position = fromHivelingFrameOfReference(e, [
-            left,
-            top
-          ]);
-          const topRight: Position = fromHivelingFrameOfReference(e, [
-            right,
-            top
-          ]);
-          const bottomLeft: Position = fromHivelingFrameOfReference(e, [
-            left,
-            bottom
-          ]);
-          const bottomRight: Position = fromHivelingFrameOfReference(e, [
-            right,
-            bottom
-          ]);
+          const topLeft: Position = fromHivelingFrameOfReference(
+            e.position,
+            e.orientation,
+            [left, top]
+          );
+          const topRight: Position = fromHivelingFrameOfReference(
+            e.position,
+            e.orientation,
+            [right, top]
+          );
+          const bottomLeft: Position = fromHivelingFrameOfReference(
+            e.position,
+            e.orientation,
+            [left, bottom]
+          );
+          const bottomRight: Position = fromHivelingFrameOfReference(
+            e.position,
+            e.orientation,
+            [right, bottom]
+          );
           [
             [topLeft, topRight],
             [topLeft, bottomLeft],
