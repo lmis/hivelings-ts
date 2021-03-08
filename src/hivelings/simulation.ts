@@ -140,15 +140,16 @@ export const applyOutput = (
         if (dist <= 0 || dist > maxMoveDistance) {
           return addScore(-2, originalState);
         }
+        const movePosition = fromHivelingFrameOfReference(origin, orientation, [
+          0,
+          dist
+        ]).map((x) => parseFloat(x.toFixed(3))) as Position;
         return addEntity(
           updateHiveling(
             currentHiveling.identifier,
             {
-              position: fromHivelingFrameOfReference(origin, orientation, [
-                0,
-                dist
-              ]).map((x) => parseFloat(x.toFixed(3))) as Position,
-              zIndex: nextZIndex(originalState.entities, targetPosition)
+              position: movePosition,
+              zIndex: nextZIndex(originalState.entities, movePosition)
             },
             originalState
           ),

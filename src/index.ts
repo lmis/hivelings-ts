@@ -163,9 +163,9 @@ const main = async () => {
 
   const url = new URLSearchParams(window.location.search).get("hive-mind");
   const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
-  const send = socket
-    ? async (message: string) =>
-        new Promise<string>((resolve) => {
+  const send = async (message: string) =>
+    socket
+      ? new Promise<string>((resolve) => {
           socket.onmessage = (event: MessageEvent<string>) => {
             socket.onmessage = () => null;
 
@@ -173,7 +173,7 @@ const main = async () => {
           };
           socket.send(message);
         })
-    : (message: string) => JSON.stringify(demoHiveMind(JSON.parse(message)));
+      : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
