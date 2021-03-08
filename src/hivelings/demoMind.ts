@@ -77,7 +77,7 @@ const walkingCost = ([x, y]: Position) => {
     // Walk off and turn backwards
     return 2;
   }
-  const initialRotationCost = positionToRotation([x, y]) <= 0.01 ? 0 : 1;
+  const initialRotationCost = isInFront(positionToRotation([x, y])) ? 0 : 1;
   const movementCost = Math.round(distance([x, y]) + 0.5);
 
   return initialRotationCost + movementCost;
@@ -85,40 +85,12 @@ const walkingCost = ([x, y]: Position) => {
 
 const goTowards = (position: Position, maxMoveDistance: number): Decision => {
   const degrees = positionToRotation(position);
-  return degrees < 10 || degrees > 350
+  return isInFront(degrees)
     ? {
         type: MOVE,
         distance: maxMoveDistance
       }
     : { type: TURN, degrees };
-};
-
-const doRandomWalk = (
-  rng: Rng,
-  maxMoveDistance: number,
-  recentDecisions: Decision[]
-): Decision => {
-  // Minimal distance to walk before turning
-  const minMoveDistance = 0.01;
-
-  // No target found. Random walk.
-  const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
-  if (maxMoveDistance > minMoveDistance && moveStreak <= 2) {
-    return { type: MOVE, distance: maxMoveDistance };
-  }
-  // Random rotation
-  const availableRotations =
-    maxMoveDistance > minMoveDistance
-      ? // Front bias
-        int32(rng, 0, 100) > 25
-        ? [...range(270, 360), ...range(0, 90)]
-        : range(0, 360)
-      : range(90, 270);
-  const degrees = pickRandom(rng, availableRotations);
-  if (degrees) {
-    return { type: TURN, degrees };
-  }
-  return { type: WAIT };
 };
 
 const search = (
@@ -166,7 +138,27 @@ const search = (
   }
 
   // No target found. Random walk.
-  return doRandomWalk(rng, maxMoveDistance, recentDecisions);
+  // Minimal distance to walk before turning
+  const minMoveDistance = 0.01;
+
+  // No target found. Random walk.
+  const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
+  if (maxMoveDistance > minMoveDistance && moveStreak <= 2) {
+    return { type: MOVE, distance: maxMoveDistance };
+  }
+  // Random rotation
+  const availableRotations =
+    maxMoveDistance > minMoveDistance
+      ? // Front bias
+        int32(rng, 0, 100) > 25
+        ? [...range(270, 360), ...range(0, 90)]
+        : range(0, 360)
+      : range(90, 270);
+  const degrees = pickRandom(rng, availableRotations);
+  if (degrees) {
+    return { type: TURN, degrees };
+  }
+  return { type: WAIT };
 };
 
 export const hivelingMind = (input: Input): Output => {
