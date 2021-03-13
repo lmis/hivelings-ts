@@ -61,6 +61,8 @@ const prettyPrintEntity = (e: Entity): string => {
       ? [...commonProps, ...hivelingProps]
       : e.type === TRAIL
       ? [...commonProps, ...trailProps]
+      : e.type === OBSTACLE
+      ? [...commonProps, "style"]
       : commonProps;
   return (
     position +
@@ -85,15 +87,15 @@ export interface GameState {
 
 const drawBackground = (
   renderBuffer: RenderBuffer,
-  background: { width: number; height: number },
+  background: any,
   scale: number,
   position: Position
 ) => {
   drawRect({
     renderBuffer,
-    fillStyle: "green",
     width: background.width * scale,
     height: background.height * scale,
+    fillStyle: "darkgreen",
     position,
     zIndex: -10
   });
@@ -112,9 +114,9 @@ const handleKeyPresses = (
     state.cameraPosition[1] = clamp(state.cameraPosition[1] + 0.2, vBounds);
   if (held.has("ArrowDown") && !held.has("Shift"))
     state.cameraPosition[1] = clamp(state.cameraPosition[1] - 0.2, vBounds);
-  if (held.has("ArrowLeft") && !held.has("Shift"))
+  if (held.has("ArrowLeft"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
-  if (held.has("ArrowRight") && !held.has("Shift"))
+  if (held.has("ArrowRight"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] + 0.2, hBounds);
   if (held.has("1")) state.speed = 1;
   if (held.has("2")) state.speed = 2;
@@ -156,7 +158,10 @@ const assetDescriptors = {
   hivelingWithNutrition: "Hiveling_strawberry.png",
   nutrition: "Strawberry.png",
   trail: "Foot_prints.png",
-  hiveEntrance: "Burrow.png"
+  hiveEntrance: "Burrow.png",
+  background: "autumn_leaves_green_hue.png",
+  treeStump: "tree_stump.png",
+  rocks: "Boulders.png"
 };
 
 const main = async () => {
@@ -183,7 +188,7 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.RANDOM),
+    simulationState: loadStartingState(ScenarioName.BASE),
     simulationStateHistory: [],
     scale: 20,
     cameraPosition: [0, 0],
@@ -286,7 +291,6 @@ const main = async () => {
 
     const renderBuffer = initializeRenderBuffer();
 
-    const background = { width: 40, height: 40 };
     const scalePixelsToGameSpace = ([x, y]: Position): Position => [
       x / scale,
       y / scale
@@ -315,7 +319,7 @@ const main = async () => {
 
     drawBackground(
       renderBuffer,
-      background,
+      assets.background,
       scale,
       transformPositionToPixelSpace([0, 0])
     );
@@ -339,7 +343,7 @@ const main = async () => {
           case HIVE_ENTRANCE:
             return assets.hiveEntrance;
           case OBSTACLE:
-            return null;
+            return e.style === "rocks" ? assets.rocks : assets.treeStump;
         }
       })();
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
@@ -370,7 +374,7 @@ const main = async () => {
         );
         drawCircle({
           renderBuffer,
-          fillStyle: "grey",
+          fillStyle: "black",
           radius: 5,
           zIndex: 800,
           position: transformPositionToPixelSpace(

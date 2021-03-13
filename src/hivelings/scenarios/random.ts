@@ -50,7 +50,8 @@ export const makeRandomScenario = (): SimulationState => {
   }).map((_) => ({
     midpoint: randomPosition(),
     radius: 0.5,
-    type: OBSTACLE
+    type: OBSTACLE,
+    style: integer(rng, 0, 10) > 3 ? "treeStump" : "rocks"
   }));
 
   const topAndBottom = crossProduct(range(-16, 16), [-16, 16]) as Position[];
@@ -64,7 +65,8 @@ export const makeRandomScenario = (): SimulationState => {
       (position): EntityInsert => ({
         midpoint: position,
         radius: 0.5,
-        type: OBSTACLE
+        type: OBSTACLE,
+        style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
       })
     )
   ].reduce(addEntity, {

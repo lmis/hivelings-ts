@@ -35,6 +35,7 @@ export interface Food {
 export interface Obstacle {
   identifier: number;
   midpoint: Position;
+  style: "treeStump" | "rocks";
   radius: number;
   zIndex: number;
   type: EntityType.OBSTACLE;
