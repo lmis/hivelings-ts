@@ -1,5 +1,5 @@
 import { EntityType } from "hivelings/types/common";
-import { RngState } from "rng/laggedFibo";
+import { Rng } from "rng/laggedFibo";
 import { Position } from "utils";
 
 export interface Hiveling {
@@ -62,7 +62,7 @@ export interface SimulationState {
   entities: Entity[];
   nextId: number;
   score: number;
-  rngState: RngState;
+  rng: Rng;
 }
 
 export const isHiveling = (e: Entity): e is Hiveling =>
