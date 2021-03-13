@@ -6,8 +6,8 @@ import { DecisionType, EntityType, Output } from "hivelings/types/common";
 import {
   Entity,
   Hiveling,
-  EntityDetailsWithPosition,
   SimulationState,
+  EntityInsert,
   Input
 } from "hivelings/types/simulation";
 import {
@@ -58,7 +58,7 @@ const nextZIndex = (entities: Entity[], target: Position): number =>
 
 export const addEntity = (
   { nextId, entities, ...state }: SimulationState,
-  entity: EntityDetailsWithPosition
+  entity: EntityInsert
 ): SimulationState => ({
   ...state,
   nextId: nextId + 1,

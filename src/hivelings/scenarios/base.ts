@@ -1,8 +1,5 @@
 import { EntityType } from "hivelings/types/common";
-import {
-  EntityDetailsWithPosition,
-  SimulationState
-} from "hivelings/types/simulation";
+import { EntityInsert, SimulationState } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
@@ -31,40 +28,34 @@ const startingNutrition = crossProduct(range(-5, 6), [
 ]) as Position[];
 const startingState: SimulationState = [
   ...startingHivelingPositions.map(
-    (position, i) =>
-      ({
-        position,
-        type: HIVELING,
-        memory: "",
-        hasFood: false,
-        recentDecisions: [],
-        orientation: (i * 105) % 360,
-        memory64: ""
-      } as EntityDetailsWithPosition)
+    (position, i): EntityInsert => ({
+      position,
+      type: HIVELING,
+      memory64: "",
+      hasFood: false,
+      orientation: (i * 105) % 360
+    })
   ),
   ...startingEntrancePositions.map(
-    (position) =>
-      ({
-        position,
-        type: HIVE_ENTRANCE
-      } as EntityDetailsWithPosition)
+    (position): EntityInsert => ({
+      position,
+      type: HIVE_ENTRANCE
+    })
   ),
   ...startingTopAndBottom.map(
-    (position) =>
-      ({
-        position,
-        type: OBSTACLE
-      } as EntityDetailsWithPosition)
+    (position): EntityInsert => ({
+      position,
+      type: OBSTACLE
+    })
   ),
   ...startingSides.map(
-    (position) => ({ position, type: OBSTACLE } as EntityDetailsWithPosition)
+    (position): EntityInsert => ({ position, type: OBSTACLE })
   ),
   ...startingNutrition.map(
-    (position) =>
-      ({
-        position,
-        type: FOOD
-      } as EntityDetailsWithPosition)
+    (position): EntityInsert => ({
+      position,
+      type: FOOD
+    })
   )
 ].reduce(addEntity, {
   entities: [],

@@ -1,44 +1,57 @@
 import { EntityType } from "hivelings/types/common";
-import {
-  EntityBase as PlayerEntityBase,
-  CurrentHivelingDetails as PlayerHivelingDetails,
-  TrailDetails as PlayerTrailDetails
-} from "hivelings/types/player";
 import { Rng } from "rng/laggedFibo";
 import { Position } from "utils";
 
-export interface EntityBase extends PlayerEntityBase {
+export interface Hiveling {
   identifier: number;
+  position: Position;
+  orientation: number; // Degrees w.r.t North
+  zIndex: number;
+  type: EntityType.HIVELING;
+  hasFood: boolean;
+  memory64: string;
 }
 
-export interface HivelingDetails extends PlayerHivelingDetails {
-  // Degrees w.r.t North
+export interface Trail {
+  identifier: number;
+  hivelingId: number;
+  position: Position;
+  zIndex: number;
+  type: EntityType.TRAIL;
+  lifetime: number;
   orientation: number;
 }
-export type Hiveling = EntityBase & HivelingDetails;
 
-export interface TrailDetails extends PlayerTrailDetails {
-  hivelingId: number;
+export interface Food {
+  identifier: number;
+  position: Position;
+  zIndex: number;
+  type: EntityType.FOOD;
 }
-export type Trail = EntityBase & TrailDetails;
 
-export type Entity = EntityBase &
-  (
-    | Hiveling
-    | Trail
-    | { type: EntityType.FOOD }
-    | { type: EntityType.HIVE_ENTRANCE }
-    | { type: EntityType.OBSTACLE }
-  );
+export interface Obstacle {
+  identifier: number;
+  position: Position;
+  zIndex: number;
+  type: EntityType.OBSTACLE;
+}
 
-export type EntityDetails =
-  | HivelingDetails
-  | TrailDetails
-  | { type: EntityType.FOOD }
-  | { type: EntityType.HIVE_ENTRANCE }
-  | { type: EntityType.OBSTACLE };
+export interface HiveEntrance {
+  identifier: number;
+  position: Position;
+  zIndex: number;
+  type: EntityType.HIVE_ENTRANCE;
+}
 
-export type EntityDetailsWithPosition = EntityDetails & { position: Position };
+export type Entity = Hiveling | Trail | Food | HiveEntrance | Obstacle;
+
+type Insert<T> = Omit<Omit<T, "zIndex">, "identifier">;
+export type EntityInsert =
+  | Insert<Hiveling>
+  | Insert<Trail>
+  | Insert<Food>
+  | Insert<HiveEntrance>
+  | Insert<Obstacle>;
 
 export interface SimulationState {
   entities: Entity[];
