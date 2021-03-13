@@ -69,7 +69,7 @@ const startingState: SimulationState = [
   entities: [],
   nextId: 0,
   score: 0,
-  rng: makeStdLaggedFibo("baseScenarioSeed")
+  rngState: makeStdLaggedFibo("baseScenarioSeed").getState()
 });
 
 export const base = { startingState };

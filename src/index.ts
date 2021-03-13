@@ -18,7 +18,6 @@ import {
   distance,
   uniqueBy,
   crossProduct,
-  Box,
   rangeSteps
 } from "utils";
 import { gameBorders, interactionArea, sightDistance } from "config";
@@ -44,6 +43,7 @@ import {
 } from "hivelings/transformations";
 import { EntityType } from "hivelings/types/common";
 import { shuffle } from "rng/utils";
+import { loadLaggedFibo } from "rng/laggedFibo";
 
 const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
@@ -73,6 +73,7 @@ const prettyPrintEntity = (e: Entity): string => {
 
 export interface GameState {
   simulationState: SimulationState;
+  simulationStateHistory: SimulationState[];
   scale: number;
   cameraPosition: Position;
   speed: number;
@@ -113,14 +114,23 @@ const handleKeyPresses = (
     state.cameraPosition[1] = clamp(state.cameraPosition[1] + 0.2, vBounds);
   if (held.has("ArrowDown") && !held.has("Shift"))
     state.cameraPosition[1] = clamp(state.cameraPosition[1] - 0.2, vBounds);
-  if (held.has("ArrowLeft"))
+  if (held.has("ArrowLeft") && !held.has("Shift"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
-  if (held.has("ArrowRight"))
+  if (held.has("ArrowRight") && !held.has("Shift"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] + 0.2, hBounds);
   if (held.has("1")) state.speed = 1;
   if (held.has("2")) state.speed = 2;
   if (held.has("3")) state.speed = 3;
   if (held.has("4")) state.speed = 4;
+  if (
+    released.has("Backspace") &&
+    !state.sending &&
+    state.simulationStateHistory.length > 0
+  ) {
+    state.simulationState = state.simulationStateHistory[0];
+    state.simulationStateHistory = state.simulationStateHistory.slice(1);
+  }
+
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
   if (released.has("i")) state.showInteractionArea = !state.showInteractionArea;
@@ -176,6 +186,7 @@ const main = async () => {
 
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.BASE),
+    simulationStateHistory: [],
     scale: 20,
     cameraPosition: [0, 0],
     speed: 0,
@@ -234,12 +245,18 @@ const main = async () => {
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
       state.sending = true;
-      const { rng, entities } = state.simulationState;
+      state.simulationStateHistory = [
+        state.simulationState,
+        ...state.simulationStateHistory
+      ].slice(0, 100);
+
+      const { rngState, entities } = state.simulationState;
+      const rng = loadLaggedFibo(rngState);
       const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
 
       (async () => {
         for (const h of shuffledHivelings) {
-          const input = makeInput(state.simulationState, h);
+          const input = makeInput(rng, entities, h);
           const output = JSON.parse(
             await send(JSON.stringify(stripSimulationProps(input)))
           );
@@ -248,6 +265,7 @@ const main = async () => {
             output
           ]);
         }
+        state.simulationState.rngState = rng.getState();
         state.sending = false;
       })();
 

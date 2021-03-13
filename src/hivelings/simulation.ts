@@ -25,6 +25,7 @@ import {
   peripherialSightFieldOfView,
   sightDistance
 } from "config";
+import { Rng } from "rng/laggedFibo";
 
 const { abs, atan2, min, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
@@ -240,7 +241,8 @@ const inArea = (
 };
 
 export const makeInput = (
-  { rng, entities }: SimulationState,
+  rng: Rng,
+  entities: Entity[],
   hiveling: Hiveling
 ): Input => {
   const { identifier, midpoint, orientation } = hiveling;
