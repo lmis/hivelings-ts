@@ -55,12 +55,12 @@ const nextZIndex = (
   target: Position,
   targetRadius: number
 ): number =>
-  1 +
-  (max(
-    entities
+  max(
+    0,
+    ...entities
       .filter((e) => distance(e.midpoint, target) < e.radius + targetRadius)
-      .map((e) => e.zIndex)
-  ) ?? -1);
+      .map((e) => e.zIndex + 1)
+  );
 
 export const addEntity = (
   { nextId, entities, ...state }: SimulationState,
