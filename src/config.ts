@@ -1,9 +1,5 @@
-export const gameBorders = {
-  bottom: -16,
-  top: 16,
-  left: -16,
-  right: 16
-};
+export const hBounds: [number, number] = [-16, 16];
+export const vBounds: [number, number] = [-16, 16];
 
 export const canvasWidth = 800;
 export const canvasHeight = 800;

@@ -5,7 +5,7 @@ import {
   EntityType
 } from "hivelings/types/common";
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
-import { int32, pickRandom } from "rng/utils";
+import { integer, pickRandom } from "rng/utils";
 import { Position, range, sortBy, takeWhile } from "utils";
 import { toDeg } from "./transformations";
 import { Entity, Input } from "./types/player";
@@ -68,7 +68,7 @@ const positionToRotation = ([x, y]: Position): number =>
   Math.round(toDeg(Math.atan2(x, y)));
 
 const isInFront = (rotation: number): boolean => {
-  return rotation < 10 || rotation > 350;
+  return rotation < 25 || rotation > 335;
 };
 
 // Estimate for number of turns to reach.
@@ -150,7 +150,7 @@ const search = (
   const availableRotations =
     maxMoveDistance > minMoveDistance
       ? // Front bias
-        int32(rng, 0, 100) > 25
+        integer(rng, 0, 100) > 25
         ? [...range(270, 360), ...range(0, 90)]
         : range(0, 360)
       : range(90, 270);

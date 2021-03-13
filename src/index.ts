@@ -20,7 +20,7 @@ import {
   crossProduct,
   rangeSteps
 } from "utils";
-import { gameBorders, interactionArea, sightDistance } from "config";
+import { hBounds, vBounds, interactionArea, sightDistance } from "config";
 import {
   applyOutput,
   makeInput,
@@ -46,8 +46,6 @@ import { shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 
 const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
-const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
-const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
 
 const prettyPrintEntity = (e: Entity): string => {
   const commonProps: (keyof Entity)[] = ["identifier", "zIndex", "radius"];
@@ -185,7 +183,7 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.BASE),
+    simulationState: loadStartingState(ScenarioName.RANDOM),
     simulationStateHistory: [],
     scale: 20,
     cameraPosition: [0, 0],
