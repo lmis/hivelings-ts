@@ -320,6 +320,13 @@ const main = async () => {
       transformPositionToPixelSpace([0, 0])
     );
 
+    drawTextbox({
+      renderBuffer,
+      position: [canvasWidth / 2, (9 * canvasHeight) / 100],
+      lines: [` Score: ${state.simulationState.score}`],
+      zIndex: 900
+    });
+
     entities.forEach((e) => {
       const image = (() => {
         switch (e.type) {
