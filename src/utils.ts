@@ -1,17 +1,4 @@
 export type Position = [number, number];
-export type Box = { left: number; right: number; top: number; bottom: number };
-
-export const wait = (millis: number) =>
-  new Promise((resolve) => setTimeout(resolve, millis));
-
-export const fuzzyEqual = (a: number, b: number, tol: number) =>
-  Math.abs(a - b) < tol;
-
-export const positionFuzzyEqual = (
-  [xa, ya]: Position,
-  [xb, yb]: Position,
-  tol: number
-) => fuzzyEqual(xa, xb, tol) && fuzzyEqual(ya, yb, tol);
 
 export const distanceSquared = (
   [x1, y1]: Position,
@@ -21,9 +8,6 @@ export const distanceSquared = (
 export const distance = (a: Position, b: Position): number =>
   Math.sqrt(distanceSquared(a, b));
 
-export const positionEquals = ([xa, xb]: Position, [ya, yb]: Position) =>
-  xa === ya && xb === yb;
-
 export const range = (lower: number, upper: number) =>
   Array.from({ length: upper - lower }, (_, i) => i + lower);
 
@@ -32,14 +16,6 @@ export const rangeSteps = (stepSize: number, lower: number, upper: number) =>
     { length: (upper - lower) / stepSize },
     (_, i) => i * stepSize + lower
   );
-
-export const zip = <T, S>(xs: T[], ys: S[]): [T, S][] => {
-  const res = [];
-  for (let i = 0; i < Math.min(xs.length, ys.length); ++i) {
-    res[i] = [xs[i], ys[i]] as [T, S];
-  }
-  return res;
-};
 
 export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
   xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));
@@ -59,22 +35,6 @@ export const maxBy = <T>(value: (x: T) => number, xs: T[]): T | null =>
     [null, -Infinity]
   )?.[0] ?? null;
 
-export const max = (xs: number[]): number | null => maxBy((x) => x, xs);
-
-export const groupBy = <T, S>(value: (x: T) => S, xs: T[]): Map<S, T[]> => {
-  const res = new Map<S, T[]>();
-  xs.forEach((x) => {
-    const prop = value(x);
-    const others = res.get(prop);
-    if (others) {
-      others.push(x);
-    } else {
-      res.set(prop, [x]);
-    }
-  });
-
-  return res;
-};
 export const sortBy = <T>(value: (x: T) => number, xs: T[]): T[] =>
   xs
     .map((x) => [x, value(x)] as [T, number])
@@ -93,6 +53,7 @@ export const uniqueBy = <T, S>(value: (x: T) => S, xs: T[]): T[] => {
   });
   return res;
 };
+
 export const hasAll = <T>(set: Set<T>, values: T[]) =>
   values.every((v) => set.has(v));
 

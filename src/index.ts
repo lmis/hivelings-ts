@@ -95,7 +95,7 @@ const drawBackground = (
     renderBuffer,
     width: background.width * scale,
     height: background.height * scale,
-    fillStyle: "darkgreen",
+    fillStyle: "rgb(30,60,15)",
     position,
     zIndex: -10
   });
@@ -155,8 +155,8 @@ const shouldAdvance = (
 };
 const assetDescriptors = {
   hiveling: "Hiveling_iteration2.png",
-  hivelingWithNutrition: "Hiveling_strawberry.png",
-  nutrition: "Strawberry.png",
+  hivelingWithFood: "Hiveling_strawberry.png",
+  food: "Strawberry.png",
   trail: "Foot_prints.png",
   hiveEntrance: "Burrow.png",
   background: "autumn_leaves_green_hue.png",
@@ -335,18 +335,28 @@ const main = async () => {
       const image = (() => {
         switch (e.type) {
           case FOOD:
-            return assets.nutrition;
+            return assets.food;
           case HIVELING:
-            return e.hasFood ? assets.hivelingWithNutrition : assets.hiveling;
+            return e.hasFood ? assets.hivelingWithFood : assets.hiveling;
           case TRAIL:
             return assets.trail;
           case HIVE_ENTRANCE:
             return assets.hiveEntrance;
           case OBSTACLE:
-            return e.style === "rocks" ? assets.rocks : assets.treeStump;
+            return assets[e.style];
         }
       })();
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
+      const [x, y] = transformPositionToPixelSpace(e.midpoint);
+      drawImage({
+        renderBuffer,
+        image,
+        width: 2 * e.radius * scale,
+        height: 2 * e.radius * scale,
+        angle,
+        position: [x, y],
+        zIndex: e.zIndex
+      });
       if (e.type === HIVELING && showInteractionArea) {
         const maxMoveDistance = Math.min(
           1,
@@ -457,27 +467,6 @@ const main = async () => {
               zIndex: 500
             });
           });
-      }
-      const [x, y] = transformPositionToPixelSpace(e.midpoint);
-      if (!image) {
-        drawRect({
-          renderBuffer,
-          position: [x, y],
-          width: 2 * e.radius * scale,
-          height: 2 * e.radius * scale,
-          fillStyle: "black",
-          zIndex: e.zIndex
-        });
-      } else {
-        drawImage({
-          renderBuffer,
-          image,
-          width: 2 * e.radius * scale,
-          height: 2 * e.radius * scale,
-          angle,
-          position: [x, y],
-          zIndex: e.zIndex
-        });
       }
     });
 

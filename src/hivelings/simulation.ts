@@ -15,7 +15,7 @@ import {
   fromHivelingFrameOfReference,
   toHivelingFrameOfReference
 } from "hivelings/transformations";
-import { max, distance, Position, Box } from "utils";
+import { distance, Position } from "utils";
 import { randomPrintable } from "rng/utils";
 import {
   debugHiveMind,
@@ -27,7 +27,7 @@ import {
 } from "config";
 import { Rng } from "rng/laggedFibo";
 
-const { abs, atan2, min, sqrt, pow } = Math;
+const { abs, atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
@@ -228,18 +228,6 @@ export const applyOutput = (
   );
 };
 
-const inArea = (
-  { midpoint: [x, y], radius }: Entity,
-  { left, right, top, bottom }: Box
-) => {
-  return (
-    x + radius > left &&
-    x - radius < right &&
-    y + radius > bottom &&
-    y - radius < top
-  );
-};
-
 export const makeInput = (
   rng: Rng,
   entities: Entity[],
@@ -258,8 +246,12 @@ export const makeInput = (
         ? { orientation: degreeDiff(e.orientation, orientation) }
         : {})
     }));
-  const interactableEntities = visibleEntities.filter((e) =>
-    inArea(e, interactionArea)
+  const interactableEntities = visibleEntities.filter(
+    ({ midpoint: [x, y], radius }) =>
+      x + radius > interactionArea.left &&
+      x - radius < interactionArea.right &&
+      y + radius > interactionArea.bottom &&
+      y - radius < interactionArea.top
   );
   const visibleEntitesInPath = visibleEntities.filter(
     ({ radius, midpoint: [x, y], type }) =>

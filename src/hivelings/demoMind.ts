@@ -150,9 +150,9 @@ const search = (
   const availableRotations =
     maxMoveDistance > minMoveDistance
       ? // Front bias
-        integer(rng, 0, 100) > 25
-        ? [...range(270, 360), ...range(0, 90)]
-        : range(0, 360)
+        integer(rng, 1, 100) > 25
+        ? [...range(270, 360), ...range(1, 90)]
+        : range(1, 360)
       : range(90, 270);
   const degrees = pickRandom(rng, availableRotations);
   if (degrees) {
