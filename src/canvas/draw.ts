@@ -129,6 +129,32 @@ export const drawRect = ({
   });
 };
 
+export const drawCircle = ({
+  renderBuffer,
+  radius,
+  fillStyle,
+  position: [x, y],
+  zIndex
+}: {
+  renderBuffer: RenderBuffer;
+  radius: number;
+  fillStyle: CanvasRenderingContext2D["fillStyle"];
+  position: Position;
+  zIndex: number;
+}) => {
+  renderBuffer.push({
+    action: (ctx) => {
+      ctx.save();
+      ctx.fillStyle = fillStyle;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.restore();
+    },
+    zIndex
+  });
+};
+
 export const drawTextbox = ({
   renderBuffer,
   position: [x, y],

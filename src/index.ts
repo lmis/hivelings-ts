@@ -7,7 +7,8 @@ import {
   drawTextbox,
   initializeRenderBuffer,
   flush,
-  drawLine
+  drawLine,
+  drawCircle
 } from "canvas/draw";
 import {
   Position,
@@ -16,17 +17,11 @@ import {
   hasAll,
   distance,
   uniqueBy,
-  positionEquals,
   crossProduct,
   Box,
   rangeSteps
 } from "utils";
-import {
-  gameBorders,
-  interactionArea,
-  movementArea,
-  sightDistance
-} from "config";
+import { gameBorders, interactionArea, sightDistance } from "config";
 import {
   applyOutput,
   makeInput,
@@ -42,7 +37,11 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
+import {
+  fromHivelingFrameOfReference,
+  toHivelingFrameOfReference,
+  toRad
+} from "hivelings/transformations";
 import { EntityType } from "hivelings/types/common";
 import { shuffle } from "rng/utils";
 
@@ -51,25 +50,25 @@ const hBounds: [number, number] = [gameBorders.left, gameBorders.right];
 const vBounds: [number, number] = [gameBorders.bottom, gameBorders.top];
 
 const prettyPrintEntity = (e: Entity): string => {
-  const common = `${e.type}[${e.position[0]},${e.position[1]}]\n  identifier: ${e.identifier}\n  zIndex: ${e.zIndex}`;
-  switch (e.type) {
-    case HIVELING:
-      const hivelingProps: (keyof Hiveling)[] = [
-        "hasFood",
-        "orientation",
-        "memory64"
-      ];
-      return (
-        common + "\n" + hivelingProps.map((k) => `  ${k}: ${e[k]}`).join("\n")
-      );
-    case TRAIL:
-      const trailProps: (keyof Trail)[] = ["orientation", "lifetime"];
-      return (
-        common + "\n" + trailProps.map((k) => `  ${k}: ${e[k]}`).join("\n")
-      );
-    default:
-      return common;
-  }
+  const commonProps: (keyof Entity)[] = ["identifier", "zIndex", "radius"];
+  const trailProps: (keyof Trail)[] = ["hivelingId", "orientation", "lifetime"];
+  const hivelingProps: (keyof Hiveling)[] = [
+    "hasFood",
+    "orientation",
+    "memory64"
+  ];
+  const position = `${e.type}\n x: ${e.midpoint[0]}\n y: ${e.midpoint[1]}`;
+  const props: string[] =
+    e.type === HIVELING
+      ? [...commonProps, ...hivelingProps]
+      : e.type === TRAIL
+      ? [...commonProps, ...trailProps]
+      : commonProps;
+  return (
+    position +
+    "\n" +
+    props.map((k: string) => ` ${k}: ${(e as any)[k]}`).join("\n")
+  );
 };
 
 export interface GameState {
@@ -320,93 +319,125 @@ const main = async () => {
             return null;
         }
       })();
-      const size = scale;
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
       if (e.type === HIVELING && showInteractionArea) {
-        drawRect({
+        const maxMoveDistance = Math.min(
+          1,
+          ...entities
+            .map((other) => ({
+              ...other,
+              midpoint: toHivelingFrameOfReference(
+                e.midpoint,
+                e.orientation,
+                other.midpoint
+              )
+            }))
+            .filter(
+              ({ identifier, radius, midpoint: [x, y], type }) =>
+                e.identifier !== identifier &&
+                [HIVELING, OBSTACLE].includes(type) &&
+                x + radius > -e.radius &&
+                x - radius < e.radius &&
+                y + radius > 0
+            )
+            .map(
+              ({ radius, midpoint: [x, y], type }) =>
+                y - Math.sqrt(Math.pow(radius + e.radius, 2) - x * x)
+            )
+        );
+        drawCircle({
           renderBuffer,
-          fillStyle: "red",
-          width: 5,
-          height: 5,
+          fillStyle: "grey",
+          radius: 5,
           zIndex: 800,
           position: transformPositionToPixelSpace(
-            fromHivelingFrameOfReference(e.position, e.orientation, [0, 1])
+            fromHivelingFrameOfReference(e.midpoint, e.orientation, [
+              0,
+              maxMoveDistance
+            ])
           )
         });
-        const drawBox = (
-          { left, right, top, bottom }: Box,
-          fillStyle: CanvasRenderingContext2D["fillStyle"]
-        ) => {
-          const topLeft: Position = fromHivelingFrameOfReference(
-            e.position,
-            e.orientation,
-            [left, top]
+        const topLeft: Position = fromHivelingFrameOfReference(
+          e.midpoint,
+          e.orientation,
+          [interactionArea.left, interactionArea.top]
+        );
+        const topRight: Position = fromHivelingFrameOfReference(
+          e.midpoint,
+          e.orientation,
+          [interactionArea.right, interactionArea.top]
+        );
+        const bottomLeft: Position = fromHivelingFrameOfReference(
+          e.midpoint,
+          e.orientation,
+          [interactionArea.left, interactionArea.bottom]
+        );
+        const bottomRight: Position = fromHivelingFrameOfReference(
+          e.midpoint,
+          e.orientation,
+          [interactionArea.right, interactionArea.bottom]
+        );
+        [
+          [topLeft, topRight],
+          [topLeft, bottomLeft],
+          [topRight, bottomRight],
+          [bottomLeft, bottomRight]
+        ].forEach(([a, b]) => {
+          drawLine(
+            renderBuffer,
+            transformPositionToPixelSpace(a),
+            transformPositionToPixelSpace(b),
+            "black",
+            800
           );
-          const topRight: Position = fromHivelingFrameOfReference(
-            e.position,
-            e.orientation,
-            [right, top]
-          );
-          const bottomLeft: Position = fromHivelingFrameOfReference(
-            e.position,
-            e.orientation,
-            [left, bottom]
-          );
-          const bottomRight: Position = fromHivelingFrameOfReference(
-            e.position,
-            e.orientation,
-            [right, bottom]
-          );
-          [
-            [topLeft, topRight],
-            [topLeft, bottomLeft],
-            [topRight, bottomRight],
-            [bottomLeft, bottomRight]
-          ].forEach(([a, b]) => {
-            drawLine(
-              renderBuffer,
-              transformPositionToPixelSpace(a),
-              transformPositionToPixelSpace(b),
-              fillStyle,
-              800
-            );
-          });
-        };
-        drawBox(interactionArea, "darkgrey");
-        drawBox(movementArea, "red");
+        });
       }
       if (e.type === HIVELING && showVision) {
+        entities
+          .filter(
+            (other) =>
+              other.identifier !== e.identifier &&
+              inFieldOfVision(e, other.midpoint)
+          )
+          .forEach((other) => {
+            drawCircle({
+              renderBuffer,
+              position: transformPositionToPixelSpace(other.midpoint),
+              radius: other.radius * scale,
+              fillStyle: "rgba(255,255,255,0.5",
+              zIndex: 500
+            });
+          });
         crossProduct(
           rangeSteps(
-            0.25,
-            e.position[0] - sightDistance,
-            e.position[0] + sightDistance
+            0.5,
+            e.midpoint[0] - sightDistance,
+            e.midpoint[0] + sightDistance
           ),
           rangeSteps(
-            0.25,
-            e.position[1] - sightDistance,
-            e.position[1] + sightDistance
+            0.5,
+            e.midpoint[1] - sightDistance,
+            e.midpoint[1] + sightDistance
           )
         )
           .filter((p) => inFieldOfVision(e, p))
           .forEach((p) => {
-            drawRect({
+            drawCircle({
               renderBuffer,
               position: transformPositionToPixelSpace(p),
-              width: size / 10,
-              height: size / 10,
+              radius: 0.1 * scale,
               fillStyle: "rgba(255,255,255,0.5",
               zIndex: 500
             });
           });
       }
-      const [x, y] = transformPositionToPixelSpace(e.position);
+      const [x, y] = transformPositionToPixelSpace(e.midpoint);
       if (!image) {
         drawRect({
           renderBuffer,
           position: [x, y],
-          width: size,
-          height: size,
+          width: 2 * e.radius * scale,
+          height: 2 * e.radius * scale,
           fillStyle: "black",
           zIndex: e.zIndex
         });
@@ -414,8 +445,8 @@ const main = async () => {
         drawImage({
           renderBuffer,
           image,
-          width: size,
-          height: size,
+          width: 2 * e.radius * scale,
+          height: 2 * e.radius * scale,
           angle,
           position: [x, y],
           zIndex: e.zIndex
@@ -428,7 +459,7 @@ const main = async () => {
 
     if (mousePosition) {
       const underCursor = entities.filter(
-        (e) => distance(e.position, mousePosition) < 0.5
+        (e) => distance(e.midpoint, mousePosition) < e.radius
       );
       if (mouse.clicking) {
         if (underCursor.length === 0) {
@@ -438,25 +469,25 @@ const main = async () => {
         }
       }
 
-      const highlighedPositions = uniqueBy(
-        (p) => p.join(","),
-        [
-          ...entities.filter((e) => state.highlighted.has(e.identifier)),
-          ...underCursor
-        ].map((e) => e.position)
-      );
+      const highlightedEntities = uniqueBy((e) => e.identifier, [
+        ...entities.filter((e) => state.highlighted.has(e.identifier)),
+        ...underCursor
+      ]);
 
-      highlighedPositions.forEach((position, i) => {
+      highlightedEntities.forEach((h, i) => {
         const lines = sortBy(
           (e) => -e.zIndex,
-          entities.filter((e) => positionEquals(e.position, position))
+          entities.filter(
+            (e) =>
+              distance(h.midpoint, e.midpoint) < h.radius + e.radius - 0.000001
+          )
         )
           .map(prettyPrintEntity)
           .join("\n")
           .split("\n");
         drawTextbox({
           renderBuffer,
-          position: transformPositionToPixelSpace(position),
+          position: transformPositionToPixelSpace(h.midpoint),
           lines,
           zIndex: 1000 + i
         });

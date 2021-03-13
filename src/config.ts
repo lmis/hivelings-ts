@@ -14,17 +14,10 @@ export const peripherialSightFieldOfView = Math.PI * 1.2;
 export const peripherialSightDistance = 1.5;
 
 export const interactionArea = {
-  bottom: 0.3,
-  top: 1.01,
-  left: -0.5,
-  right: 0.5
+  bottom: 0.4,
+  top: 0.6,
+  left: -0.2,
+  right: 0.2
 };
 
-export const movementArea = {
-  bottom: 0.0,
-  top: 2,
-  left: -1,
-  right: 1
-};
-
-export const debugHiveMind = true;
+export const debugHiveMind = false;

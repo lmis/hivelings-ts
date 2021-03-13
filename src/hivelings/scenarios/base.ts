@@ -29,7 +29,8 @@ const startingNutrition = crossProduct(range(-5, 6), [
 const startingState: SimulationState = [
   ...startingHivelingPositions.map(
     (position, i): EntityInsert => ({
-      position,
+      midpoint: position,
+      radius: 0.5,
       type: HIVELING,
       memory64: "",
       hasFood: false,
@@ -38,22 +39,29 @@ const startingState: SimulationState = [
   ),
   ...startingEntrancePositions.map(
     (position): EntityInsert => ({
-      position,
+      midpoint: position,
+      radius: 0.5,
       type: HIVE_ENTRANCE
     })
   ),
   ...startingTopAndBottom.map(
     (position): EntityInsert => ({
-      position,
+      midpoint: position,
+      radius: 0.5,
       type: OBSTACLE
     })
   ),
   ...startingSides.map(
-    (position): EntityInsert => ({ position, type: OBSTACLE })
+    (position): EntityInsert => ({
+      midpoint: position,
+      radius: 0.5,
+      type: OBSTACLE
+    })
   ),
   ...startingNutrition.map(
     (position): EntityInsert => ({
-      position,
+      midpoint: position,
+      radius: 0.5,
       type: FOOD
     })
   )

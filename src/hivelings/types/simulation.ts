@@ -4,7 +4,8 @@ import { Position } from "utils";
 
 export interface Hiveling {
   identifier: number;
-  position: Position;
+  midpoint: Position;
+  radius: number;
   orientation: number; // Degrees w.r.t North
   zIndex: number;
   type: EntityType.HIVELING;
@@ -15,7 +16,8 @@ export interface Hiveling {
 export interface Trail {
   identifier: number;
   hivelingId: number;
-  position: Position;
+  midpoint: Position;
+  radius: number;
   zIndex: number;
   type: EntityType.TRAIL;
   lifetime: number;
@@ -24,21 +26,24 @@ export interface Trail {
 
 export interface Food {
   identifier: number;
-  position: Position;
+  midpoint: Position;
+  radius: number;
   zIndex: number;
   type: EntityType.FOOD;
 }
 
 export interface Obstacle {
   identifier: number;
-  position: Position;
+  midpoint: Position;
+  radius: number;
   zIndex: number;
   type: EntityType.OBSTACLE;
 }
 
 export interface HiveEntrance {
   identifier: number;
-  position: Position;
+  midpoint: Position;
+  radius: number;
   zIndex: number;
   type: EntityType.HIVE_ENTRANCE;
 }
