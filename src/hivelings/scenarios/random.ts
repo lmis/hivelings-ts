@@ -59,12 +59,12 @@ export const makeRandomScenario = (): SimulationState => {
   while (obstacles.length < numberOfObstacles) {
     const midpoint = randomPosition();
     if (
-      [...obstacles, ...hivelings].every(
+      [...hives, ...foodItems, ...obstacles, ...hivelings].every(
         (e) => distance(e.midpoint, midpoint) >= e.radius + obstacleRadius
       )
     ) {
       obstacles.push({
-        midpoint: randomPosition(),
+        midpoint,
         radius: obstacleRadius,
         type: OBSTACLE,
         style: integer(rng, 0, 10) > 3 ? "treeStump" : "rocks"
