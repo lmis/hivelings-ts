@@ -20,7 +20,7 @@ import {
   crossProduct,
   rangeSteps
 } from "utils";
-import { hBounds, vBounds, interactionArea, sightDistance } from "config";
+import { hBounds, vBounds, sightDistance } from "config";
 import {
   applyOutput,
   makeInput,
@@ -36,13 +36,9 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import {
-  fromHivelingFrameOfReference,
-  toHivelingFrameOfReference,
-  toRad
-} from "hivelings/transformations";
+import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
 import { EntityType } from "hivelings/types/common";
-import { shuffle } from "rng/utils";
+import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 
 const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
@@ -71,14 +67,23 @@ const prettyPrintEntity = (e: Entity): string => {
   );
 };
 
+interface Metadata {
+  maxMoveDistanceByHivelingId: Map<number, number>;
+  interactableEntityIds: Set<Number>;
+  visibleEntityIds: Set<number>;
+  visiblePositions: Position[];
+  outdated: boolean;
+}
+
 export interface GameState {
   simulationState: SimulationState;
   simulationStateHistory: SimulationState[];
+  metadata: Metadata;
   scale: number;
   cameraPosition: Position;
   speed: number;
   showVision: boolean;
-  showInteractionArea: boolean;
+  showInteractions: boolean;
   highlighted: Set<number>;
   quitting: boolean;
   sending: boolean;
@@ -129,11 +134,12 @@ const handleKeyPresses = (
   ) {
     state.simulationState = state.simulationStateHistory[0];
     state.simulationStateHistory = state.simulationStateHistory.slice(1);
+    state.metadata.outdated = true;
   }
 
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
-  if (released.has("i")) state.showInteractionArea = !state.showInteractionArea;
+  if (released.has("i")) state.showInteractions = !state.showInteractions;
 };
 
 const shouldAdvance = (
@@ -190,11 +196,18 @@ const main = async () => {
   let state: GameState = {
     simulationState: loadStartingState(ScenarioName.RANDOM),
     simulationStateHistory: [],
+    metadata: {
+      maxMoveDistanceByHivelingId: new Map(),
+      interactableEntityIds: new Set(),
+      visibleEntityIds: new Set(),
+      visiblePositions: [],
+      outdated: true
+    },
     scale: 20,
     cameraPosition: [0, 0],
     speed: 0,
     showVision: false,
-    showInteractionArea: false,
+    showInteractions: false,
     highlighted: new Set(),
     quitting: false,
     sending: false,
@@ -259,7 +272,10 @@ const main = async () => {
 
       (async () => {
         for (const h of shuffledHivelings) {
-          const input = makeInput(rng, entities, h);
+          const input = {
+            ...makeInput(entities, h),
+            randomSeed: randomPrintable(rng, rng.getState().sequence.length)
+          };
           const output = JSON.parse(
             await send(JSON.stringify(stripSimulationProps(input)))
           );
@@ -267,6 +283,7 @@ const main = async () => {
             input,
             output
           ]);
+          state.metadata.outdated = true;
         }
         state.simulationState.rngState = rng.getState();
         state.sending = false;
@@ -277,12 +294,61 @@ const main = async () => {
       state.framesSinceLastAdvance += 1;
     }
 
+    if (
+      (state.showInteractions || state.showVision) &&
+      state.metadata.outdated
+    ) {
+      const {
+        visibleEntityIds,
+        interactableEntityIds,
+        maxMoveDistanceByHivelingId
+      } = state.metadata;
+      visibleEntityIds.clear();
+      interactableEntityIds.clear();
+      maxMoveDistanceByHivelingId.clear();
+      state.metadata.visiblePositions = [];
+
+      state.simulationState.entities.filter(isHiveling).forEach((h) => {
+        const {
+          maxMoveDistance,
+          visibleEntities,
+          interactableEntities
+        } = makeInput(state.simulationState.entities, h);
+        interactableEntities.forEach((e) =>
+          interactableEntityIds.add(e.identifier)
+        );
+        visibleEntities.forEach((e) => visibleEntityIds.add(e.identifier));
+        maxMoveDistanceByHivelingId.set(h.identifier, maxMoveDistance);
+        const resolution = 2;
+        crossProduct(
+          rangeSteps(
+            1 / resolution,
+            h.midpoint[0] - sightDistance,
+            h.midpoint[0] + sightDistance
+          ),
+          rangeSteps(
+            1 / resolution,
+            h.midpoint[1] - sightDistance,
+            h.midpoint[1] + sightDistance
+          )
+        )
+          .map(
+            (p) =>
+              p.map(
+                (n) => +(Math.round(n * resolution) / resolution)
+              ) as Position
+          )
+          .filter((p) => inFieldOfVision(h, p))
+          .forEach((p) => state.metadata.visiblePositions.push(p));
+      });
+      state.metadata.outdated = false;
+    }
     const {
       scale,
       cameraPosition,
       simulationState: { entities },
       showVision,
-      showInteractionArea
+      showInteractions
     } = state;
     const canvasWidth = window.innerWidth;
     const canvasHeight = window.innerHeight;
@@ -331,6 +397,17 @@ const main = async () => {
       zIndex: 900
     });
 
+    if (showVision) {
+      state.metadata.visiblePositions.forEach((p) => {
+        drawCircle({
+          renderBuffer,
+          position: transformPositionToPixelSpace(p),
+          radius: 0.1 * scale,
+          fillStyle: "rgba(255,255,255,0.1",
+          zIndex: 500
+        });
+      });
+    }
     entities.forEach((e) => {
       const image = (() => {
         switch (e.type) {
@@ -357,116 +434,46 @@ const main = async () => {
         position: [x, y],
         zIndex: e.zIndex
       });
-      if (e.type === HIVELING && showInteractionArea) {
-        const maxMoveDistance = Math.min(
-          1,
-          ...entities
-            .map((other) => ({
-              ...other,
-              midpoint: toHivelingFrameOfReference(
-                e.midpoint,
-                e.orientation,
-                other.midpoint
-              )
-            }))
-            .filter(
-              ({ identifier, radius, midpoint: [x, y], type }) =>
-                e.identifier !== identifier &&
-                [HIVELING, OBSTACLE].includes(type) &&
-                x + radius > -e.radius &&
-                x - radius < e.radius &&
-                y + radius > 0
-            )
-            .map(
-              ({ radius, midpoint: [x, y], type }) =>
-                y - Math.sqrt(Math.pow(radius + e.radius, 2) - x * x)
-            )
+
+      if (showInteractions && e.type === HIVELING) {
+        const maxMoveDistance = state.metadata.maxMoveDistanceByHivelingId.get(
+          e.identifier
         );
+        if (maxMoveDistance) {
+          drawCircle({
+            renderBuffer,
+            fillStyle: "blue",
+            radius: 5,
+            zIndex: 800,
+            position: transformPositionToPixelSpace(
+              fromHivelingFrameOfReference(e.midpoint, e.orientation, [
+                0,
+                maxMoveDistance
+              ])
+            )
+          });
+        }
+      }
+      if (showVision && state.metadata.visibleEntityIds.has(e.identifier)) {
         drawCircle({
           renderBuffer,
-          fillStyle: "black",
-          radius: 5,
-          zIndex: 800,
-          position: transformPositionToPixelSpace(
-            fromHivelingFrameOfReference(e.midpoint, e.orientation, [
-              0,
-              maxMoveDistance
-            ])
-          )
-        });
-        const topLeft: Position = fromHivelingFrameOfReference(
-          e.midpoint,
-          e.orientation,
-          [interactionArea.left, interactionArea.top]
-        );
-        const topRight: Position = fromHivelingFrameOfReference(
-          e.midpoint,
-          e.orientation,
-          [interactionArea.right, interactionArea.top]
-        );
-        const bottomLeft: Position = fromHivelingFrameOfReference(
-          e.midpoint,
-          e.orientation,
-          [interactionArea.left, interactionArea.bottom]
-        );
-        const bottomRight: Position = fromHivelingFrameOfReference(
-          e.midpoint,
-          e.orientation,
-          [interactionArea.right, interactionArea.bottom]
-        );
-        [
-          [topLeft, topRight],
-          [topLeft, bottomLeft],
-          [topRight, bottomRight],
-          [bottomLeft, bottomRight]
-        ].forEach(([a, b]) => {
-          drawLine(
-            renderBuffer,
-            transformPositionToPixelSpace(a),
-            transformPositionToPixelSpace(b),
-            "black",
-            800
-          );
+          position: transformPositionToPixelSpace(e.midpoint),
+          radius: e.radius * scale,
+          fillStyle: "rgba(255,255,255,0.3",
+          zIndex: 500
         });
       }
-      if (e.type === HIVELING && showVision) {
-        entities
-          .filter(
-            (other) =>
-              other.identifier !== e.identifier &&
-              inFieldOfVision(e, other.midpoint)
-          )
-          .forEach((other) => {
-            drawCircle({
-              renderBuffer,
-              position: transformPositionToPixelSpace(other.midpoint),
-              radius: other.radius * scale,
-              fillStyle: "rgba(255,255,255,0.5",
-              zIndex: 500
-            });
-          });
-        crossProduct(
-          rangeSteps(
-            0.5,
-            e.midpoint[0] - sightDistance,
-            e.midpoint[0] + sightDistance
-          ),
-          rangeSteps(
-            0.5,
-            e.midpoint[1] - sightDistance,
-            e.midpoint[1] + sightDistance
-          )
-        )
-          .filter((p) => inFieldOfVision(e, p))
-          .forEach((p) => {
-            drawCircle({
-              renderBuffer,
-              position: transformPositionToPixelSpace(p),
-              radius: 0.1 * scale,
-              fillStyle: "rgba(255,255,255,0.5",
-              zIndex: 500
-            });
-          });
+      if (
+        showInteractions &&
+        state.metadata.interactableEntityIds.has(e.identifier)
+      ) {
+        drawCircle({
+          renderBuffer,
+          position: transformPositionToPixelSpace(e.midpoint),
+          radius: e.radius * scale,
+          fillStyle: "rgba(0,0,0,0.8",
+          zIndex: 500
+        });
       }
     });
 

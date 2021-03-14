@@ -16,7 +16,6 @@ import {
   toHivelingFrameOfReference
 } from "hivelings/transformations";
 import { distance, Position } from "utils";
-import { randomPrintable } from "rng/utils";
 import {
   debugHiveMind,
   fieldOfView,
@@ -25,7 +24,6 @@ import {
   peripherialSightFieldOfView,
   sightDistance
 } from "config";
-import { Rng } from "rng/laggedFibo";
 
 const { abs, atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
@@ -229,10 +227,9 @@ export const applyOutput = (
 };
 
 export const makeInput = (
-  rng: Rng,
   entities: Entity[],
   hiveling: Hiveling
-): Input => {
+): Omit<Input, "randomSeed"> => {
   const { identifier, midpoint, orientation } = hiveling;
   const visibleEntities = entities
     .filter(
@@ -277,7 +274,6 @@ export const makeInput = (
       orientation: 0,
       midpoint: [0, 0]
     },
-    randomSeed: randomPrintable(rng, rng.getState().sequence.length),
     origin: midpoint,
     orientation
   };
