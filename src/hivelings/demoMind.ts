@@ -6,7 +6,7 @@ import {
 } from "hivelings/types/common";
 import { makeStdLaggedFibo, Rng } from "rng/laggedFibo";
 import { integer, pickRandom } from "rng/utils";
-import { Position, range, sortBy, takeWhile } from "utils";
+import { maxBy, Position, range, sortBy, takeWhile } from "utils";
 import { toDeg } from "./transformations";
 import { Entity, Input } from "./types/player";
 
@@ -105,8 +105,9 @@ const search = (
         return false;
       }
       const dist = distance(e.position);
+      const rotation = positionToRotation(e.position);
       // Reachable by moving
-      if (dist < maxMoveDistance && positionToRotation(e.position)) {
+      if (dist < maxMoveDistance && (rotation < 75 || rotation > 295)) {
         return true;
       }
       // Reachable by turning.
@@ -122,8 +123,8 @@ const search = (
 
   // Find closest target.
   const blockedInFront = maxMoveDistance < 0.2;
-  const closestTarget = sortBy(
-    (e) => walkingCost(e.position),
+  const closestTarget = maxBy(
+    (e) => -walkingCost(e.position),
     visibleEntities.filter((e) => {
       if (e.type !== soughtType) {
         return false;
@@ -134,7 +135,7 @@ const search = (
       const rotation = positionToRotation(e.position);
       return rotation < 270 && rotation > 90;
     })
-  )[0];
+  );
   if (closestTarget) {
     return goTowards(closestTarget.position, maxMoveDistance);
   }
@@ -156,11 +157,7 @@ const search = (
         ? [...range(270, 360), ...range(1, 90)]
         : range(1, 360)
       : range(90, 270);
-  const degrees = pickRandom(rng, availableRotations);
-  if (degrees) {
-    return { type: TURN, degrees };
-  }
-  return { type: WAIT };
+  return { type: TURN, degrees: pickRandom(rng, availableRotations) ?? 180 };
 };
 
 export const hivelingMind = (input: Input): Output => {
