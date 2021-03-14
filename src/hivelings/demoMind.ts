@@ -67,17 +67,14 @@ const distance = ([x, y]: Position): number => Math.sqrt(x * x + y * y);
 const positionToRotation = ([x, y]: Position): number =>
   Math.round(toDeg(Math.atan2(x, y)));
 
-const isInFront = (rotation: number): boolean => {
-  return rotation < 25 || rotation > 335;
-};
-
 // Estimate for number of turns to reach.
 const walkingCost = ([x, y]: Position) => {
   if (x === 0 && y === 0) {
     // Walk off and turn backwards
     return 2;
   }
-  const initialRotationCost = isInFront(positionToRotation([x, y])) ? 0 : 1;
+  const rotation = positionToRotation([x, y]);
+  const initialRotationCost = rotation < 15 || rotation > 355 ? 0 : 1;
   const movementCost = Math.round(distance([x, y]) + 0.5);
 
   return initialRotationCost + movementCost;
@@ -85,7 +82,7 @@ const walkingCost = ([x, y]: Position) => {
 
 const goTowards = (position: Position, maxMoveDistance: number): Decision => {
   const degrees = positionToRotation(position);
-  return isInFront(degrees)
+  return degrees < 15 || degrees > 355
     ? {
         type: MOVE,
         distance: maxMoveDistance
@@ -127,11 +124,16 @@ const search = (
   const blockedInFront = maxMoveDistance < 0.2;
   const closestTarget = sortBy(
     (e) => walkingCost(e.position),
-    visibleEntities.filter(
-      (e) =>
-        e.type === soughtType &&
-        !(blockedInFront && isInFront(positionToRotation(e.position)))
-    )
+    visibleEntities.filter((e) => {
+      if (e.type !== soughtType) {
+        return false;
+      }
+      if (!blockedInFront) {
+        return true;
+      }
+      const rotation = positionToRotation(e.position);
+      return rotation < 270 && rotation > 90;
+    })
   )[0];
   if (closestTarget) {
     return goTowards(closestTarget.position, maxMoveDistance);
