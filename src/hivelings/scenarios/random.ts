@@ -32,7 +32,7 @@ export const makeRandomScenario = (): SimulationState => {
         midpoint,
         radius: hivelingRadius,
         type: HIVELING,
-        memory64: "",
+        memory: null,
         hasFood: integer(rng, 0, 2) === 0,
         orientation: integer(rng, 0, 359)
       });

@@ -8,10 +8,6 @@ export interface Hiveling {
   hasFood: boolean;
 }
 
-export interface CurrentHiveling extends Hiveling {
-  memory64: string;
-}
-
 export interface Trail {
   position: Position;
   zIndex: number;
@@ -43,10 +39,11 @@ export type Entity = Hiveling | Trail | Food | HiveEntrance | Obstacle;
 export const isHiveling = (e: Entity): e is Hiveling =>
   e.type === EntityType.HIVELING;
 
-export interface Input {
+export interface Input<T> {
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];
-  currentHiveling: CurrentHiveling;
+  currentHiveling: Hiveling;
+  memory: T | null;
   randomSeed: string;
 }

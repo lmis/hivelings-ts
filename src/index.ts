@@ -7,7 +7,6 @@ import {
   drawTextbox,
   initializeRenderBuffer,
   flush,
-  drawLine,
   drawCircle
 } from "canvas/draw";
 import {
@@ -37,7 +36,7 @@ import {
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
 import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
-import { EntityType } from "hivelings/types/common";
+import { EntityType, Output } from "hivelings/types/common";
 import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 
@@ -46,11 +45,7 @@ const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 const prettyPrintEntity = (e: Entity): string => {
   const commonProps: (keyof Entity)[] = ["identifier", "zIndex", "radius"];
   const trailProps: (keyof Trail)[] = ["hivelingId", "orientation", "lifetime"];
-  const hivelingProps: (keyof Hiveling)[] = [
-    "hasFood",
-    "orientation",
-    "memory64"
-  ];
+  const hivelingProps: (keyof Hiveling)[] = ["hasFood", "orientation"];
   const position = `${e.type}\n x: ${e.midpoint[0]}\n y: ${e.midpoint[1]}`;
   const props: string[] =
     e.type === HIVELING
@@ -63,7 +58,8 @@ const prettyPrintEntity = (e: Entity): string => {
   return (
     position +
     "\n" +
-    props.map((k: string) => ` ${k}: ${(e as any)[k]}`).join("\n")
+    props.map((k: string) => ` ${k}: ${(e as any)[k]}`).join("\n") +
+    (e.type === HIVELING && e.show ? `\n show: ${e.show}` : "")
   );
 };
 
@@ -276,7 +272,7 @@ const main = async () => {
             ...makeInput(entities, h),
             randomSeed: randomPrintable(rng, rng.getState().sequence.length)
           };
-          const output = JSON.parse(
+          const output: Output<unknown> = JSON.parse(
             await send(JSON.stringify(stripSimulationProps(input)))
           );
           state.simulationState = applyOutput(state.simulationState, [
@@ -322,13 +318,13 @@ const main = async () => {
         const resolution = 2;
         crossProduct(
           rangeSteps(
-            1 / resolution,
             h.midpoint[0] - sightDistance,
+            1 / resolution,
             h.midpoint[0] + sightDistance
           ),
           rangeSteps(
-            1 / resolution,
             h.midpoint[1] - sightDistance,
+            1 / resolution,
             h.midpoint[1] + sightDistance
           )
         )

@@ -113,8 +113,8 @@ export const applyOutput = (
       origin,
       orientation
     },
-    { decision, memory64 }
-  ]: [Input, Output]
+    { decision, memory, show }
+  ]: [Input, Output<unknown>]
 ): SimulationState => {
   const targetPosition: Position = fromHivelingFrameOfReference(
     origin,
@@ -218,9 +218,7 @@ export const applyOutput = (
     currentHiveling.identifier,
     updateHiveling(
       currentHiveling.identifier,
-      {
-        memory64: memory64.substring(0, 64)
-      },
+      { memory, show },
       stateAfterDecision
     )
   );
@@ -230,7 +228,7 @@ export const makeInput = (
   entities: Entity[],
   hiveling: Hiveling
 ): Omit<Input, "randomSeed"> => {
-  const { identifier, midpoint, orientation } = hiveling;
+  const { identifier, midpoint, orientation, memory } = hiveling;
   const visibleEntities = entities
     .filter(
       (e) =>
@@ -274,6 +272,7 @@ export const makeInput = (
       orientation: 0,
       midpoint: [0, 0]
     },
+    memory,
     origin: midpoint,
     orientation
   };
@@ -305,7 +304,7 @@ const stripSimulationEntityProps = (e: Entity): PlayerEntity => {
       return { ...base, type: e.type };
   }
 };
-export const stripSimulationProps = (input: Input): PlayerInput => {
+export const stripSimulationProps = (input: Input): PlayerInput<unknown> => {
   const {
     maxMoveDistance,
     interactableEntities,
@@ -313,7 +312,7 @@ export const stripSimulationProps = (input: Input): PlayerInput => {
     currentHiveling,
     randomSeed
   } = input;
-  const { memory64, type, hasFood, midpoint, zIndex } = currentHiveling;
+  const { memory, type, hasFood, midpoint, zIndex } = currentHiveling;
   return {
     ...(debugHiveMind ? input : {}),
     maxMoveDistance,
@@ -328,9 +327,9 @@ export const stripSimulationProps = (input: Input): PlayerInput => {
           type,
           hasFood,
           zIndex,
-          memory64,
           position: midpoint
         },
+    memory,
     randomSeed
   };
 };

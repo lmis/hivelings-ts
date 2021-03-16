@@ -21,7 +21,8 @@ export type Decision =
   | { type: DecisionType.PICKUP }
   | { type: DecisionType.WAIT };
 
-export interface Output {
+export interface Output<T> {
   decision: Decision;
-  memory64: string;
+  memory: T;
+  show?: string;
 }

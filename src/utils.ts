@@ -11,7 +11,11 @@ export const distance = (a: Position, b: Position): number =>
 export const range = (lower: number, upper: number) =>
   Array.from({ length: upper - lower }, (_, i) => i + lower);
 
-export const rangeSteps = (stepSize: number, lower: number, upper: number) =>
+export const rangeSteps = (
+  lower: number,
+  stepSize: number,
+  upper: number
+): number[] =>
   Array.from(
     { length: (upper - lower) / stepSize },
     (_, i) => i * stepSize + lower

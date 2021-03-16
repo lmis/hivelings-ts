@@ -10,7 +10,8 @@ export interface Hiveling {
   zIndex: number;
   type: EntityType.HIVELING;
   hasFood: boolean;
-  memory64: string;
+  memory: unknown | null;
+  show?: string;
 }
 
 export interface Trail {
@@ -74,6 +75,7 @@ export interface Input {
   interactableEntities: Entity[];
   visibleEntities: Entity[];
   currentHiveling: Hiveling;
+  memory: unknown | null;
   origin: Position;
   orientation: number;
   randomSeed: string;

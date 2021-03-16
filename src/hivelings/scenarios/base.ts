@@ -33,7 +33,7 @@ export const makeBaseScenario = (): SimulationState => {
         midpoint: position,
         radius: 0.5,
         type: HIVELING,
-        memory64: "",
+        memory: null,
         hasFood: false,
         orientation: (i * 105) % 360
       })
