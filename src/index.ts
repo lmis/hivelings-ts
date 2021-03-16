@@ -19,12 +19,13 @@ import {
   crossProduct,
   rangeSteps
 } from "utils";
-import { hBounds, vBounds, sightDistance } from "config";
+import { hBounds, vBounds, sightDistance, debugHiveMind } from "config";
 import {
   applyOutput,
   makeInput,
   inFieldOfVision,
-  stripSimulationProps
+  stripSimulationProps,
+  fadeTrails
 } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
@@ -256,31 +257,41 @@ const main = async () => {
       (releasedKeys.has("Enter") ||
         shouldAdvance(state.speed, state.framesSinceLastAdvance))
     ) {
-      state.sending = true;
-      state.simulationStateHistory = [
-        state.simulationState,
-        ...state.simulationStateHistory
-      ].slice(0, 100);
-
-      const { rngState, entities } = state.simulationState;
-      const rng = loadLaggedFibo(rngState);
-      const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
-
       (async () => {
-        for (const h of shuffledHivelings) {
+        state.sending = true;
+        state.simulationStateHistory = [
+          state.simulationState,
+          ...state.simulationStateHistory
+        ].slice(0, 100);
+
+        const { rngState, entities } = state.simulationState;
+        const rng = loadLaggedFibo(rngState);
+        const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
+
+        for (const currentHiveling of shuffledHivelings) {
           const input = {
-            ...makeInput(entities, h),
+            ...makeInput(entities, currentHiveling),
             randomSeed: randomPrintable(rng, rng.getState().sequence.length)
           };
           const output: Output<unknown> = JSON.parse(
-            await send(JSON.stringify(stripSimulationProps(input)))
+            await send(
+              JSON.stringify(
+                debugHiveMind
+                  ? { ...input, currentHiveling }
+                  : stripSimulationProps(input)
+              )
+            )
           );
-          state.simulationState = applyOutput(state.simulationState, [
+          state.simulationState = applyOutput(
+            state.simulationState,
+            currentHiveling,
             input,
             output
-          ]);
+          );
           state.metadata.outdated = true;
         }
+        state.simulationState = fadeTrails(state.simulationState);
+        state.metadata.outdated = true;
         state.simulationState.rngState = rng.getState();
         state.sending = false;
       })();

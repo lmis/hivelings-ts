@@ -74,8 +74,8 @@ const search = (
       if (e?.type !== soughtType) {
         return false;
       }
-      const dist = distance(e.position);
-      const rotation = positionToRotation(e.position);
+      const dist = distance(e.midpoint);
+      const rotation = positionToRotation(e.midpoint);
       // Reachable by moving
       if (dist < maxMoveDistance && (rotation < 75 || rotation > 295)) {
         return true;
@@ -88,13 +88,13 @@ const search = (
     })
   );
   if (reachableTarget) {
-    return goTowards(reachableTarget.position, maxMoveDistance);
+    return goTowards(reachableTarget.midpoint, maxMoveDistance);
   }
 
   // Find closest target.
   const blockedInFront = maxMoveDistance < 0.2;
   const closestTarget = maxBy(
-    (e) => -walkingCost(e.position),
+    (e) => -walkingCost(e.midpoint),
     visibleEntities.filter((e) => {
       if (e.type !== soughtType) {
         return false;
@@ -102,12 +102,12 @@ const search = (
       if (!blockedInFront) {
         return true;
       }
-      const rotation = positionToRotation(e.position);
+      const rotation = positionToRotation(e.midpoint);
       return rotation < 270 && rotation > 90;
     })
   );
   if (closestTarget) {
-    return goTowards(closestTarget.position, maxMoveDistance);
+    return goTowards(closestTarget.midpoint, maxMoveDistance);
   }
 
   // No target found. Random walk.
@@ -135,7 +135,7 @@ export const hivelingMind = (input: Input<Memory>): Output<Memory> => {
     maxMoveDistance,
     visibleEntities,
     interactableEntities,
-    currentHiveling,
+    hasFood,
     randomSeed
   } = input;
   const rng = makeStdLaggedFibo(randomSeed);
@@ -153,23 +153,17 @@ export const hivelingMind = (input: Input<Memory>): Output<Memory> => {
   };
 
   // Desired thing in front, interact.
-  if (
-    currentHiveling.hasFood &&
-    interactableEntities.some((e) => e.type === HIVE_ENTRANCE)
-  ) {
+  if (hasFood && interactableEntities.some((e) => e.type === HIVE_ENTRANCE)) {
     return takeDecision({ type: DROP });
   }
-  if (
-    !currentHiveling.hasFood &&
-    interactableEntities.some((e) => e.type === FOOD)
-  ) {
+  if (!hasFood && interactableEntities.some((e) => e.type === FOOD)) {
     return takeDecision({ type: PICKUP });
   }
 
   // Go search
   return takeDecision(
     search(
-      currentHiveling.hasFood ? HIVE_ENTRANCE : FOOD,
+      hasFood ? HIVE_ENTRANCE : FOOD,
       visibleEntities,
       maxMoveDistance,
       recentDecisions,

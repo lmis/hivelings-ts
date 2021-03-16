@@ -2,14 +2,14 @@ import { EntityType } from "hivelings/types/common";
 import { Position } from "utils";
 
 export interface Hiveling {
-  position: Position;
+  midpoint: Position;
   zIndex: number;
   type: EntityType.HIVELING;
   hasFood: boolean;
 }
 
 export interface Trail {
-  position: Position;
+  midpoint: Position;
   zIndex: number;
   type: EntityType.TRAIL;
   lifetime: number;
@@ -17,33 +17,30 @@ export interface Trail {
 }
 
 export interface Food {
-  position: Position;
+  midpoint: Position;
   zIndex: number;
   type: EntityType.FOOD;
 }
 
 export interface Obstacle {
-  position: Position;
+  midpoint: Position;
   zIndex: number;
   type: EntityType.OBSTACLE;
 }
 
 export interface HiveEntrance {
-  position: Position;
+  midpoint: Position;
   zIndex: number;
   type: EntityType.HIVE_ENTRANCE;
 }
 
 export type Entity = Hiveling | Trail | Food | HiveEntrance | Obstacle;
 
-export const isHiveling = (e: Entity): e is Hiveling =>
-  e.type === EntityType.HIVELING;
-
 export interface Input<T> {
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];
-  currentHiveling: Hiveling;
+  hasFood: boolean;
   memory: T | null;
   randomSeed: string;
 }

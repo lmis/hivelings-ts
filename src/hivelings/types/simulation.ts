@@ -74,9 +74,7 @@ export interface Input {
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];
-  currentHiveling: Hiveling;
   memory: unknown | null;
-  origin: Position;
-  orientation: number;
+  hasFood: boolean;
   randomSeed: string;
 }
