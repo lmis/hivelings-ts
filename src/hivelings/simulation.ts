@@ -226,13 +226,12 @@ export const makeInput = (
       [HIVELING, OBSTACLE].includes(type) &&
       x + radius > -hiveling.radius &&
       x - radius < hiveling.radius &&
-      y + radius > 0
+      y > 0
   );
   const maxMoveDistance = min(
     1,
-    ...entitiesInPath.map(
-      ({ radius, midpoint: [x, y] }) =>
-        y - sqrt(pow(radius + hiveling.radius, 2) - x * x)
+    ...entitiesInPath.map(({ radius, midpoint: [x, y] }) =>
+      y - sqrt(pow(radius + hiveling.radius, 2) - x * x)
     )
   );
 

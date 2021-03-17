@@ -268,13 +268,15 @@ const main = async () => {
           ...state.simulationStateHistory
         ].slice(0, 100);
 
-        const { rngState, entities } = state.simulationState;
-        const rng = loadLaggedFibo(rngState);
-        const shuffledHivelings = shuffle(rng, entities.filter(isHiveling));
+        const rng = loadLaggedFibo(state.simulationState.rngState);
+        const shuffledHivelings = shuffle(
+          rng,
+          state.simulationState.entities.filter(isHiveling)
+        );
 
         for (const currentHiveling of shuffledHivelings) {
           const input = {
-            ...makeInput(entities, currentHiveling),
+            ...makeInput(state.simulationState.entities, currentHiveling),
             randomSeed: randomPrintable(rng, rng.getState().sequence.length)
           };
           const output: Output<unknown> = JSON.parse(
@@ -452,23 +454,20 @@ const main = async () => {
       });
 
       if (showInteractions && e.type === HIVELING) {
-        const maxMoveDistance = state.metadata.maxMoveDistanceByHivelingId.get(
-          e.identifier
-        );
-        if (maxMoveDistance) {
-          drawCircle({
-            renderBuffer,
-            fillStyle: "blue",
-            radius: 5,
-            zIndex: 800,
-            position: transformPositionToPixelSpace(
-              fromHivelingFrameOfReference(e.midpoint, e.orientation, [
-                0,
-                maxMoveDistance
-              ])
-            )
-          });
-        }
+        const maxMoveDistance =
+          state.metadata.maxMoveDistanceByHivelingId.get(e.identifier) ?? 0;
+        drawCircle({
+          renderBuffer,
+          fillStyle: "blue",
+          radius: 5,
+          zIndex: 800,
+          position: transformPositionToPixelSpace(
+            fromHivelingFrameOfReference(e.midpoint, e.orientation, [
+              0,
+              maxMoveDistance
+            ])
+          )
+        });
       }
       if (showVision && state.metadata.visibleEntityIds.has(e.identifier)) {
         drawCircle({
