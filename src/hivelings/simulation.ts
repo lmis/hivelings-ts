@@ -28,22 +28,19 @@ const { abs, atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
-// TODO: Take radius into account?
-export const inFieldOfVision = (
-  { midpoint, orientation }: Hiveling,
-  p: Position
-) => {
-  const dist = distance(p, midpoint);
+export const inFieldOfVision = ([x, y]: Position, radius: number) => {
+  const dist = distance([x, y], [0, 0]);
   if (dist === 0) {
     return true;
   }
-  const [x, y] = toHivelingFrameOfReference(midpoint, orientation, p);
 
+  const alpha = abs(Math.asin(radius / dist));
   const angle = abs(atan2(x, y));
-  const inSight = angle <= fieldOfView / 2 && dist <= sightDistance;
+  const inSight =
+    angle <= fieldOfView / 2 + alpha && dist <= sightDistance + radius;
   const inPeripheralView =
     angle <= peripherialSightFieldOfView / 2 &&
-    dist <= peripherialSightDistance;
+    dist <= peripherialSightDistance + radius;
   return inSight || inPeripheralView;
 };
 
@@ -205,11 +202,8 @@ export const makeInput = (
   hiveling: Hiveling
 ): Omit<Input, "randomSeed"> => {
   const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
-  const visibleEntities = entities
-    .filter(
-      (e) =>
-        e.identifier !== identifier && inFieldOfVision(hiveling, e.midpoint)
-    )
+  const otherEntitiesInHivelingReference = entities
+    .filter((e) => e.identifier !== identifier)
     .map((e) => ({
       ...e,
       midpoint: toHivelingFrameOfReference(midpoint, orientation, e.midpoint),
@@ -217,14 +211,17 @@ export const makeInput = (
         ? { orientation: degreeDiff(e.orientation, orientation) }
         : {})
     }));
-  const interactableEntities = visibleEntities.filter(
+  const visibleEntities = otherEntitiesInHivelingReference.filter((e) =>
+    inFieldOfVision(e.midpoint, e.radius)
+  );
+  const interactableEntities = otherEntitiesInHivelingReference.filter(
     ({ midpoint: [x, y], radius }) =>
       x + radius > interactionArea.left &&
       x - radius < interactionArea.right &&
       y + radius > interactionArea.bottom &&
       y - radius < interactionArea.top
   );
-  const visibleEntitesInPath = visibleEntities.filter(
+  const entitiesInPath = otherEntitiesInHivelingReference.filter(
     ({ radius, midpoint: [x, y], type }) =>
       [HIVELING, OBSTACLE].includes(type) &&
       x + radius > -hiveling.radius &&
@@ -233,7 +230,7 @@ export const makeInput = (
   );
   const maxMoveDistance = min(
     1,
-    ...visibleEntitesInPath.map(
+    ...entitiesInPath.map(
       ({ radius, midpoint: [x, y] }) =>
         y - sqrt(pow(radius + hiveling.radius, 2) - x * x)
     )

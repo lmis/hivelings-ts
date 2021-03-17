@@ -36,7 +36,11 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
+import {
+  fromHivelingFrameOfReference,
+  toHivelingFrameOfReference,
+  toRad
+} from "hivelings/transformations";
 import { EntityType, Output } from "hivelings/types/common";
 import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
@@ -339,13 +343,18 @@ const main = async () => {
             h.midpoint[1] + sightDistance
           )
         )
-          .map(
-            (p) =>
-              p.map(
-                (n) => +(Math.round(n * resolution) / resolution)
-              ) as Position
+          .filter((p) =>
+            inFieldOfVision(
+              toHivelingFrameOfReference(
+                h.midpoint,
+                h.orientation,
+                p.map(
+                  (n) => +(Math.round(n * resolution) / resolution)
+                ) as Position
+              ),
+              0
+            )
           )
-          .filter((p) => inFieldOfVision(h, p))
           .forEach((p) => state.metadata.visiblePositions.push(p));
       });
       state.metadata.outdated = false;
