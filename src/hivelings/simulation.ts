@@ -13,36 +13,15 @@ import {
 import {
   degreeDiff,
   fromHivelingFrameOfReference,
+  toDeg,
   toHivelingFrameOfReference
 } from "hivelings/transformations";
 import { distance, Position } from "utils";
-import {
-  fieldOfView,
-  interactionArea,
-  peripherialSightDistance,
-  peripherialSightFieldOfView,
-  sightDistance
-} from "config";
+import { fieldOfView, interactionArea, sightDistance } from "config";
 
-const { abs, atan2, min, max, sqrt, pow } = Math;
+const { atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
-
-export const inFieldOfVision = ([x, y]: Position, radius: number) => {
-  const dist = distance([x, y], [0, 0]);
-  if (dist === 0) {
-    return true;
-  }
-
-  const alpha = abs(Math.asin(radius / dist));
-  const angle = abs(atan2(x, y));
-  const inSight =
-    angle <= fieldOfView / 2 + alpha && dist <= sightDistance + radius;
-  const inPeripheralView =
-    angle <= peripherialSightFieldOfView / 2 &&
-    dist <= peripherialSightDistance + radius;
-  return inSight || inPeripheralView;
-};
 
 const nextZIndex = (
   entities: Entity[],
@@ -197,22 +176,79 @@ export const applyOutput = (
   }
 };
 
+const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
+  ...e,
+  midpoint: toHivelingFrameOfReference(midpoint, orientation, e.midpoint),
+  ...("orientation" in e
+    ? { orientation: degreeDiff(e.orientation, orientation) }
+    : {})
+});
+
+type EntityVisibility = Entity & {
+  lower: number;
+  upper: number;
+  dist: number;
+};
+
 export const makeInput = (
   entities: Entity[],
   hiveling: Hiveling
 ): Omit<Input, "randomSeed"> => {
   const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
-  const otherEntitiesInHivelingReference = entities
-    .filter((e) => e.identifier !== identifier)
-    .map((e) => ({
-      ...e,
-      midpoint: toHivelingFrameOfReference(midpoint, orientation, e.midpoint),
-      ...("orientation" in e
-        ? { orientation: degreeDiff(e.orientation, orientation) }
-        : {})
-    }));
-  const visibleEntities = otherEntitiesInHivelingReference.filter((e) =>
-    inFieldOfVision(e.midpoint, e.radius)
+  const otherEntities = entities.filter((e) => e.identifier !== identifier);
+  const entityVisibilities = otherEntities
+    .map(
+      (e): EntityVisibility => {
+        const position = e.midpoint;
+        const dist = distance(midpoint, position);
+        if (dist <= e.radius) {
+          return {
+            ...e,
+            lower: 0,
+            upper: 360,
+            dist
+          };
+        }
+
+        const [x, y] = toHivelingFrameOfReference(
+          midpoint,
+          orientation - fieldOfView / 2,
+          position
+        );
+
+        const angle = atan2(x, y);
+        const alpha = Math.asin(e.radius / dist);
+        const lower = toDeg(angle - alpha);
+        const upper = toDeg(angle + alpha);
+
+        return { ...e, lower, upper, dist };
+      }
+    )
+    .filter(
+      ({ dist, radius, upper }) =>
+        dist <= sightDistance + radius && upper <= fieldOfView
+    );
+  const occluders = entityVisibilities.filter((e) =>
+    [HIVELING, OBSTACLE].includes(e.type)
+  );
+
+  const nonOccludedEntityVisibilities = entityVisibilities.filter((e) =>
+    occluders.every(
+      (o) =>
+        o.identifier === e.identifier ||
+        o.dist > e.dist ||
+        o.lower > e.lower ||
+        o.upper < e.upper
+    )
+  );
+
+  const visibleEntities = otherEntities
+    .filter((e) =>
+      nonOccludedEntityVisibilities.some((v) => v.identifier === e.identifier)
+    )
+    .map((e) => toHivelingSpace(hiveling, e));
+  const otherEntitiesInHivelingReference = otherEntities.map((e) =>
+    toHivelingSpace(hiveling, e)
   );
   const interactableEntities = otherEntitiesInHivelingReference.filter(
     ({ midpoint: [x, y], radius }) =>
@@ -230,8 +266,9 @@ export const makeInput = (
   );
   const maxMoveDistance = min(
     1,
-    ...entitiesInPath.map(({ radius, midpoint: [x, y] }) =>
-      y - sqrt(pow(radius + hiveling.radius, 2) - x * x)
+    ...entitiesInPath.map(
+      ({ radius, midpoint: [x, y] }) =>
+        y - sqrt(pow(radius + hiveling.radius, 2) - x * x)
     )
   );
 

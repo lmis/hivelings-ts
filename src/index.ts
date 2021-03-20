@@ -23,7 +23,6 @@ import { hBounds, vBounds, sightDistance, debugHiveMind } from "config";
 import {
   applyOutput,
   makeInput,
-  inFieldOfVision,
   stripSimulationProps,
   fadeTrails
 } from "hivelings/simulation";
@@ -36,11 +35,7 @@ import {
   Trail
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
-import {
-  fromHivelingFrameOfReference,
-  toHivelingFrameOfReference,
-  toRad
-} from "hivelings/transformations";
+import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
 import { EntityType, Output } from "hivelings/types/common";
 import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
@@ -195,7 +190,7 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.RANDOM),
+    simulationState: loadStartingState(ScenarioName.BASE),
     simulationStateHistory: [],
     metadata: {
       maxMoveDistanceByHivelingId: new Map(),
@@ -332,32 +327,6 @@ const main = async () => {
         );
         visibleEntities.forEach((e) => visibleEntityIds.add(e.identifier));
         maxMoveDistanceByHivelingId.set(h.identifier, maxMoveDistance);
-        const resolution = 2;
-        crossProduct(
-          rangeSteps(
-            h.midpoint[0] - sightDistance,
-            1 / resolution,
-            h.midpoint[0] + sightDistance
-          ),
-          rangeSteps(
-            h.midpoint[1] - sightDistance,
-            1 / resolution,
-            h.midpoint[1] + sightDistance
-          )
-        )
-          .filter((p) =>
-            inFieldOfVision(
-              toHivelingFrameOfReference(
-                h.midpoint,
-                h.orientation,
-                p.map(
-                  (n) => +(Math.round(n * resolution) / resolution)
-                ) as Position
-              ),
-              0
-            )
-          )
-          .forEach((p) => state.metadata.visiblePositions.push(p));
       });
       state.metadata.outdated = false;
     }
