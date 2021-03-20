@@ -238,7 +238,13 @@ const main = async () => {
       (async () => {
         state.sending = true;
         state.simulationStateHistory = [
-          state.simulationState,
+          {
+            ...state.simulationState,
+            entities: state.simulationState.entities.map((e) => ({
+              ...e,
+              midpoint: [...e.midpoint] as Position
+            }))
+          },
           ...state.simulationStateHistory
         ].slice(0, 100);
 
@@ -270,15 +276,10 @@ const main = async () => {
               )
             )
           );
-          state.simulationState = applyOutput(
-            state.simulationState,
-            currentHiveling,
-            input,
-            output
-          );
+          applyOutput(state.simulationState, currentHiveling, input, output);
           state.cachedInput.clear();
         }
-        state.simulationState = fadeTrails(state.simulationState);
+        fadeTrails(state.simulationState);
         state.cachedInput.clear();
         state.simulationState.rngState = rng.getState();
         state.sending = false;

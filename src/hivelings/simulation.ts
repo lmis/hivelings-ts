@@ -42,27 +42,18 @@ export const insert = (state: SimulationState, e: EntityInsert): void => {
   state.entities.push({ identifier, zIndex, ...e });
 };
 
-export const fadeTrails = (s: SimulationState): SimulationState => ({
-  ...s,
-  entities: s.entities
+export const fadeTrails = (s: SimulationState): void => {
+  s.entities = s.entities
     .map((e) => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
-    .filter((e) => !(e.type === TRAIL && --e.lifetime < 0))
-});
+    .filter((e) => !(e.type === TRAIL && --e.lifetime < 0));
+};
 
 export const applyOutput = (
-  originalState: SimulationState,
+  state: SimulationState,
   { midpoint, orientation, identifier, radius, hasFood }: Hiveling,
   { interactableEntities, maxMoveDistance }: Input,
   { decision, memory, show }: Output<unknown>
-): SimulationState => {
-  const state = {
-    ...originalState,
-    entities: originalState.entities.map((e) => ({
-      ...e,
-      midpoint: [...e.midpoint] as Position
-    }))
-  };
-
+): void => {
   const currentHiveling = state.entities.find(
     (e): e is Hiveling => e.identifier === identifier
   )!;
