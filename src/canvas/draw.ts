@@ -48,13 +48,19 @@ export const drawImage = ({
   });
 };
 
-export const drawLine = (
-  renderBuffer: RenderBuffer,
-  [xStart, yStart]: Position,
-  [xEnd, yEnd]: Position,
-  strokeStyle: CanvasRenderingContext2D["strokeStyle"],
-  zIndex: number
-) => {
+export const drawLine = ({
+  renderBuffer,
+  start: [xStart, yStart],
+  end: [xEnd, yEnd],
+  strokeStyle,
+  zIndex
+}: {
+  renderBuffer: RenderBuffer;
+  start: Position;
+  end: Position;
+  strokeStyle: CanvasRenderingContext2D["strokeStyle"];
+  zIndex: number;
+}) => {
   renderBuffer.push({
     action: (ctx) => {
       ctx.save();
@@ -67,40 +73,6 @@ export const drawLine = (
     },
     zIndex
   });
-};
-
-export const drawGrid = ({
-  renderBuffer,
-  width,
-  height,
-  xCells,
-  yCells,
-  topLeft,
-  strokeStyle,
-  zIndex
-}: {
-  renderBuffer: RenderBuffer;
-  width: number;
-  height: number;
-  xCells: number;
-  yCells: number;
-  topLeft: Position;
-  strokeStyle: CanvasRenderingContext2D["strokeStyle"];
-  zIndex: number;
-}) => {
-  const xMin = topLeft[0] - width / 2;
-  const xMax = xMin + xCells * width;
-  const yMin = topLeft[1] - width / 2;
-  const yMax = yMin + yCells * height;
-
-  for (let i = 0; i <= xCells; ++i) {
-    const x = xMin + i * width;
-    drawLine(renderBuffer, [x, yMin], [x, yMax], strokeStyle, zIndex);
-  }
-  for (let i = 0; i <= yCells; ++i) {
-    const y = yMin + i * height;
-    drawLine(renderBuffer, [xMin, y], [xMax, y], strokeStyle, zIndex);
-  }
 };
 
 export const drawRect = ({

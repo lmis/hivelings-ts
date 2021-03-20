@@ -71,6 +71,7 @@ export const isHiveling = (e: Entity): e is Hiveling =>
   e.type === EntityType.HIVELING;
 
 export interface Input {
+  visibilityEndpoints: Position[];
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];

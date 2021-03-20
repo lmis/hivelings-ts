@@ -10,10 +10,10 @@ const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
 export const makeBaseScenario = (): SimulationState => {
   const rng = makeStdLaggedFibo("baseScenarioSeed");
   const hivelinPositions: [Position, number][] = [
-    // [[1, 4], 260],
-    // [[-3, 12], 35],
-    // [[0, -6], 70],
-    // [[2, 2], 0],
+    [[1, 4], 260],
+    [[-3, 12], 35],
+    [[0, -6], 70],
+    [[2, 2], 0],
     [[6, 0], 0]
   ];
   const foodPositions: Position[] = crossProduct(range(-5, 6), [
@@ -46,7 +46,7 @@ export const makeBaseScenario = (): SimulationState => {
         type: HIVE_ENTRANCE
       })
     ),
-    ...[...topAndBottom, ...sides, [5.5, 1], [6.5, 1], [6, 3]].map(
+    ...[...topAndBottom, ...sides].map(
       (midpoint): EntityInsert => ({
         midpoint,
         radius: 0.5,
@@ -54,7 +54,7 @@ export const makeBaseScenario = (): SimulationState => {
         style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
       })
     ),
-    ...[...foodPositions, [7, 2], [6, 2]].map(
+    ...[...foodPositions].map(
       (midpoint): EntityInsert => ({
         midpoint,
         radius: 0.5,

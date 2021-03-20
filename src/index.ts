@@ -7,19 +7,11 @@ import {
   drawTextbox,
   initializeRenderBuffer,
   flush,
-  drawCircle
+  drawCircle,
+  drawLine
 } from "canvas/draw";
-import {
-  Position,
-  sortBy,
-  clamp,
-  hasAll,
-  distance,
-  uniqueBy,
-  crossProduct,
-  rangeSteps
-} from "utils";
-import { hBounds, vBounds, sightDistance, debugHiveMind } from "config";
+import { Position, sortBy, clamp, hasAll, distance, uniqueBy } from "utils";
+import { hBounds, vBounds, debugHiveMind } from "config";
 import {
   applyOutput,
   makeInput,
@@ -67,7 +59,7 @@ interface Metadata {
   maxMoveDistanceByHivelingId: Map<number, number>;
   interactableEntityIds: Set<Number>;
   visibleEntityIds: Set<number>;
-  visiblePositions: Position[];
+  visibilityEndpointsByHivelingId: Map<number, Position[]>;
   outdated: boolean;
 }
 
@@ -196,7 +188,7 @@ const main = async () => {
       maxMoveDistanceByHivelingId: new Map(),
       interactableEntityIds: new Set(),
       visibleEntityIds: new Set(),
-      visiblePositions: [],
+      visibilityEndpointsByHivelingId: new Map(),
       outdated: true
     },
     scale: 20,
@@ -309,23 +301,26 @@ const main = async () => {
       const {
         visibleEntityIds,
         interactableEntityIds,
-        maxMoveDistanceByHivelingId
+        maxMoveDistanceByHivelingId,
+        visibilityEndpointsByHivelingId
       } = state.metadata;
       visibleEntityIds.clear();
       interactableEntityIds.clear();
       maxMoveDistanceByHivelingId.clear();
-      state.metadata.visiblePositions = [];
+      visibilityEndpointsByHivelingId.clear();
 
       state.simulationState.entities.filter(isHiveling).forEach((h) => {
         const {
           maxMoveDistance,
           visibleEntities,
+          visibilityEndpoints,
           interactableEntities
         } = makeInput(state.simulationState.entities, h);
         interactableEntities.forEach((e) =>
           interactableEntityIds.add(e.identifier)
         );
         visibleEntities.forEach((e) => visibleEntityIds.add(e.identifier));
+        visibilityEndpointsByHivelingId.set(h.identifier, visibilityEndpoints);
         maxMoveDistanceByHivelingId.set(h.identifier, maxMoveDistance);
       });
       state.metadata.outdated = false;
@@ -384,17 +379,6 @@ const main = async () => {
       zIndex: 900
     });
 
-    if (showVision) {
-      state.metadata.visiblePositions.forEach((p) => {
-        drawCircle({
-          renderBuffer,
-          position: transformPositionToPixelSpace(p),
-          radius: 0.1 * scale,
-          fillStyle: "rgba(255,255,255,0.1",
-          zIndex: 500
-        });
-      });
-    }
     entities.forEach((e) => {
       const image = (() => {
         switch (e.type) {
@@ -438,6 +422,19 @@ const main = async () => {
           )
         });
       }
+      if (showVision && e.type === HIVELING) {
+        (
+          state.metadata.visibilityEndpointsByHivelingId.get(e.identifier) ?? []
+        ).forEach((p) => {
+          drawLine({
+            renderBuffer,
+            start: transformPositionToPixelSpace(e.midpoint),
+            end: transformPositionToPixelSpace(p),
+            strokeStyle: "rgba(255,255,255,0.1",
+            zIndex: 500
+          });
+        });
+      }
       if (showVision && state.metadata.visibleEntityIds.has(e.identifier)) {
         drawCircle({
           renderBuffer,
@@ -447,6 +444,7 @@ const main = async () => {
           zIndex: 500
         });
       }
+
       if (
         showInteractions &&
         state.metadata.interactableEntityIds.has(e.identifier)
