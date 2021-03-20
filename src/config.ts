@@ -13,5 +13,3 @@ export const interactionArea = {
   left: -0.2,
   right: 0.2
 };
-
-export const debugHiveMind = false;

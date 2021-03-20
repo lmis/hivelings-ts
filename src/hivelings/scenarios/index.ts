@@ -3,15 +3,17 @@ import { makeBaseScenario } from "hivelings/scenarios/base";
 import { makeRandomScenario } from "hivelings/scenarios/random";
 
 export enum ScenarioName {
-  BASE = "BASE",
-  RANDOM = "RANDOM"
+  BASE = "base",
+  RANDOM = "random"
 }
 
-export const loadStartingState = (name: ScenarioName): SimulationState => {
+export const loadStartingState = (name: string): SimulationState => {
   switch (name) {
     case ScenarioName.BASE:
       return makeBaseScenario();
     case ScenarioName.RANDOM:
       return makeRandomScenario();
+    default:
+      throw new Error(`Unknown Scenario ${name}`);
   }
 };

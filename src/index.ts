@@ -11,7 +11,7 @@ import {
   drawWedge
 } from "canvas/draw";
 import { Position, sortBy, clamp, hasAll, distance, uniqueBy } from "utils";
-import { hBounds, vBounds, debugHiveMind } from "config";
+import { hBounds, vBounds } from "config";
 import {
   applyOutput,
   makeInput,
@@ -160,7 +160,10 @@ const main = async () => {
     throw new Error("Cannot get canvas context");
   }
 
-  const url = new URLSearchParams(window.location.search).get("hive-mind");
+  const searchParams = new URLSearchParams(window.location.search);
+  const scenario = searchParams.get("scenario") ?? ScenarioName.BASE;
+  const debugHiveMind = searchParams.get("debug-hive-mind") ?? false;
+  const url = searchParams.get("hive-mind");
   const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
   const send = async (message: string) =>
     socket
@@ -175,7 +178,7 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.RANDOM),
+    simulationState: loadStartingState(scenario),
     simulationStateHistory: [],
     cachedInput: new Map(),
     scale: 20,
@@ -351,7 +354,7 @@ const main = async () => {
     drawTextbox({
       renderBuffer,
       position: [canvasWidth / 2, (9 * canvasHeight) / 100],
-      lines: [` Score: ${state.simulationState.score}`],
+      lines: [` Score: ${state.simulationState.score}` + (debugHiveMind ? " (DEBUG)" : "")],
       zIndex: 900
     });
 

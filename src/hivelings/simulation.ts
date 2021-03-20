@@ -121,7 +121,6 @@ export const applyOutput = (
   if (decision.type === DROP && !hasFood) {
     state.score -= 2;
   }
-  return state;
 };
 
 const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
