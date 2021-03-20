@@ -5,6 +5,7 @@ import {
 import { DecisionType, EntityType, Output } from "hivelings/types/common";
 import {
   Entity,
+  EntityInsert,
   Hiveling,
   SimulationState,
   Input
@@ -22,7 +23,7 @@ const { asin, atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
-export const nextZIndex = (
+const nextZIndex = (
   entities: Entity[],
   target: Position,
   targetRadius: number
@@ -34,18 +35,18 @@ export const nextZIndex = (
       .map((e) => e.zIndex + 1)
   );
 
-const deepCopy = ({ entities, ...rest }: SimulationState): SimulationState => ({
-  ...rest,
-  entities: entities.map((e) => ({
-    ...e,
-    midpoint: [...e.midpoint]
-  }))
-});
+export const insert = (state: SimulationState, e: EntityInsert): void => {
+  const identifier = state.nextId++;
+  const zIndex = nextZIndex(state.entities, e.midpoint, e.radius);
+
+  state.entities.push({ identifier, zIndex, ...e });
+};
+
 export const fadeTrails = (s: SimulationState): SimulationState => ({
   ...s,
   entities: s.entities
     .map((e) => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
-    .filter((e) => !(e.type === TRAIL && e.lifetime < 0))
+    .filter((e) => !(e.type === TRAIL && --e.lifetime < 0))
 });
 
 export const applyOutput = (
@@ -54,7 +55,13 @@ export const applyOutput = (
   { interactableEntities, maxMoveDistance }: Input,
   { decision, memory, show }: Output<unknown>
 ): SimulationState => {
-  const state = deepCopy(originalState);
+  const state = {
+    ...originalState,
+    entities: originalState.entities.map((e) => ({
+      ...e,
+      midpoint: [...e.midpoint] as Position
+    }))
+  };
 
   const currentHiveling = state.entities.find(
     (e): e is Hiveling => e.identifier === identifier
@@ -87,15 +94,13 @@ export const applyOutput = (
         0,
         dist
       ]);
-      state.entities.push({
-        identifier: state.nextId++,
+      insert(state, {
         type: TRAIL,
         lifetime: 4,
         hivelingId: identifier,
         midpoint,
         radius,
-        orientation,
-        zIndex: nextZIndex(state.entities, midpoint, radius)
+        orientation
       });
       currentHiveling.midpoint = movePosition;
       currentHiveling.zIndex = nextZIndex(state.entities, movePosition, radius);
@@ -126,12 +131,10 @@ export const applyOutput = (
             [0, 1]
           );
 
-          state.entities.push({
-            identifier: state.nextId++,
+          insert(state, {
             type: FOOD,
             midpoint: targetPosition,
-            radius: 0.5,
-            zIndex: nextZIndex(state.entities, midpoint, radius)
+            radius: 0.5
           });
         }
       } else {

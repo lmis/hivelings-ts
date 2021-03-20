@@ -52,6 +52,13 @@ export interface HiveEntrance {
 }
 
 export type Entity = Hiveling | Trail | Food | HiveEntrance | Obstacle;
+type Insert<T> = Omit<Omit<T, "zIndex">, "identifier">;
+export type EntityInsert =
+  | Insert<Hiveling>
+  | Insert<Trail>
+  | Insert<Food>
+  | Insert<HiveEntrance>
+  | Insert<Obstacle>;
 
 export interface SimulationState {
   entities: Entity[];

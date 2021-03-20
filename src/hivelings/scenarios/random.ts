@@ -1,6 +1,6 @@
 import { EntityType } from "hivelings/types/common";
 import { SimulationState } from "hivelings/types/simulation";
-import { nextZIndex } from "hivelings/simulation";
+import { insert } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { float, integer, pickRandom } from "rng/utils";
 import { crossProduct, distance, Position, range } from "utils";
@@ -36,9 +36,7 @@ export const makeRandomScenario = (): SimulationState => {
         (e) => distance(e.midpoint, midpoint) >= 2 * hivelingRadius
       )
     ) {
-      state.entities.push({
-        identifier: state.nextId++,
-        zIndex: nextZIndex(state.entities, midpoint, hivelingRadius),
+      insert(state, {
         midpoint,
         color: randomColor(),
         radius: hivelingRadius,
@@ -53,9 +51,7 @@ export const makeRandomScenario = (): SimulationState => {
   for (let hive = 0; hive < numberOfHives; ++hive) {
     const midpoint = randomPosition();
     const radius = 0.5;
-    state.entities.push({
-      identifier: state.nextId++,
-      zIndex: nextZIndex(state.entities, midpoint, radius),
+    insert(state, {
       midpoint,
       radius,
       type: HIVE_ENTRANCE
@@ -65,9 +61,7 @@ export const makeRandomScenario = (): SimulationState => {
   for (let foodItem = 0; foodItem < numberOfFoodItems; ++foodItem) {
     const midpoint = randomPosition();
     const radius = 0.5;
-    state.entities.push({
-      identifier: state.nextId++,
-      zIndex: nextZIndex(state.entities, midpoint, radius),
+    insert(state, {
       midpoint,
       radius,
       type: FOOD
@@ -82,9 +76,7 @@ export const makeRandomScenario = (): SimulationState => {
         (e) => distance(e.midpoint, midpoint) >= e.radius + obstacleRadius
       )
     ) {
-      state.entities.push({
-        identifier: state.nextId++,
-        zIndex: nextZIndex(state.entities, midpoint, obstacleRadius),
+      insert(state, {
         midpoint,
         radius: obstacleRadius,
         type: OBSTACLE,
@@ -96,9 +88,7 @@ export const makeRandomScenario = (): SimulationState => {
   const topAndBottom = crossProduct(range(-16, 16), [-16, 16]) as Position[];
   const sides = crossProduct([-16, 16], range(-16, 17)) as Position[];
   [...topAndBottom, ...sides].forEach((midpoint) =>
-    state.entities.push({
-      identifier: state.nextId++,
-      zIndex: nextZIndex(state.entities, midpoint, obstacleRadius),
+    insert(state, {
       midpoint,
       radius: obstacleRadius,
       type: OBSTACLE,

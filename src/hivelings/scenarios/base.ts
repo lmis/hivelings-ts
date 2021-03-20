@@ -1,6 +1,6 @@
 import { EntityType } from "hivelings/types/common";
 import { SimulationState } from "hivelings/types/simulation";
-import { nextZIndex } from "hivelings/simulation";
+import { insert } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
 import { integer } from "rng/utils";
@@ -35,44 +35,36 @@ export const makeBaseScenario = (): SimulationState => {
     rngState: rng.getState()
   };
   hivelingSpec.forEach(([color, midpoint, orientation], i) =>
-    state.entities.push({
-      identifier: state.nextId++,
+    insert(state, {
       color,
       midpoint,
       radius: 0.5,
       type: HIVELING,
       memory: null,
       hasFood: false,
-      orientation,
-      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+      orientation
     })
   );
   hivePositions.forEach((midpoint) =>
-    state.entities.push({
-      identifier: state.nextId++,
+    insert(state, {
       midpoint,
       radius: 0.5,
-      type: HIVE_ENTRANCE,
-      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+      type: HIVE_ENTRANCE
     })
   );
   [...topAndBottom, ...sides].forEach((midpoint) =>
-    state.entities.push({
-      identifier: state.nextId++,
+    insert(state, {
       midpoint,
       radius: 0.5,
       type: OBSTACLE,
-      style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks",
-      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+      style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
     })
   );
   foodPositions.forEach((midpoint) =>
-    state.entities.push({
-      identifier: state.nextId++,
+    insert(state, {
       midpoint,
       radius: 0.5,
-      type: FOOD,
-      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+      type: FOOD
     })
   );
   return state;
