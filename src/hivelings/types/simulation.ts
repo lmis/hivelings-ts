@@ -4,6 +4,7 @@ import { Position } from "utils";
 
 export interface Hiveling {
   identifier: number;
+  color: string;
   midpoint: Position;
   radius: number;
   orientation: number; // Degrees w.r.t North
@@ -71,7 +72,11 @@ export const isHiveling = (e: Entity): e is Hiveling =>
   e.type === EntityType.HIVELING;
 
 export interface Input {
-  visibilityEndpoints: Position[];
+  visibilityEndpoints: {
+    dist: number;
+    angleStart: number;
+    angleEnd: number;
+  }[];
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];

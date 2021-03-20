@@ -189,8 +189,10 @@ export const makeInput = (
   hiveling: Hiveling
 ): Omit<Input, "randomSeed"> => {
   const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
-  const otherEntities = entities.filter((e) => e.identifier !== identifier);
-  const sliverWidth = 1;
+  const otherEntities = entities
+    .filter((e) => e.identifier !== identifier)
+    .map((e) => ({ ...e, dist: distance(midpoint, e.midpoint) }));
+  const sliverWidth = fieldOfView / 50;
   const slivers = rangeSteps(
     -fieldOfView / 2,
     sliverWidth,
@@ -198,46 +200,40 @@ export const makeInput = (
   ).map((sliverStart) => {
     const entitiesInSliver = sortBy(
       (e) => e.dist,
-      otherEntities
-        .map((e) => ({ ...e, dist: distance(midpoint, e.midpoint) }))
-        .filter((e) => {
-          const position = e.midpoint;
-          if (e.dist <= e.radius) {
-            return true;
-          }
+      otherEntities.filter((e) => {
+        const position = e.midpoint;
+        if (e.dist <= e.radius) {
+          return true;
+        }
 
-          const [x, y] = toHivelingFrameOfReference(
-            midpoint,
-            orientation + sliverStart,
-            position
-          );
+        const [x, y] = toHivelingFrameOfReference(
+          midpoint,
+          orientation + sliverStart,
+          position
+        );
 
-          const angle = atan2(x, y);
-          const alpha = asin(e.radius / e.dist);
-          const left = toDeg(angle - alpha);
-          const right = toDeg(angle + alpha);
+        const angle = atan2(x, y);
+        const alpha = asin(e.radius / e.dist);
+        const left = toDeg(angle - alpha);
+        const right = toDeg(angle + alpha);
 
-          return (
-            e.dist <= sightDistance + e.radius &&
-            (right < sliverWidth || left < sliverWidth || left > right)
-          );
-        })
+        return (
+          e.dist <= sightDistance + e.radius &&
+          (right < sliverWidth || left < sliverWidth || left > right)
+        );
+      })
     );
     const occluderIndex = entitiesInSliver.findIndex((e) =>
       [OBSTACLE, HIVELING].includes(e.type)
     );
-    const occluder = entitiesInSliver[occluderIndex];
-    const dist = occluder ? occluder.dist - occluder.radius : sightDistance;
     return {
-      visibleEntityIds: (occluder
-        ? entitiesInSliver.slice(0, occluderIndex + 1)
-        : entitiesInSliver
+      visibleEntityIds: (occluderIndex === -1
+        ? entitiesInSliver
+        : entitiesInSliver.slice(0, occluderIndex + 1)
       ).map((e) => e.identifier),
-      endpoint: fromHivelingFrameOfReference(
-        midpoint,
-        orientation + sliverStart,
-        [0, dist]
-      )
+      dist: entitiesInSliver[occluderIndex]?.dist ?? sightDistance,
+      angleStart: orientation + sliverStart,
+      angleEnd: orientation + sliverStart + sliverWidth
     };
   });
   const visibleEntityIds = new Set<number>();
@@ -274,7 +270,11 @@ export const makeInput = (
   );
 
   return {
-    visibilityEndpoints: slivers.map((s) => s.endpoint),
+    visibilityEndpoints: slivers.map(({ angleStart, angleEnd, dist }) => ({
+      dist,
+      angleStart,
+      angleEnd
+    })),
     maxMoveDistance,
     interactableEntities,
     visibleEntities,

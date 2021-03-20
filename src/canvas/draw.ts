@@ -48,6 +48,44 @@ export const drawImage = ({
   });
 };
 
+export const drawWedge = ({
+  renderBuffer,
+  start: [x, y],
+  angleStart,
+  angleEnd,
+  radius,
+  fillStyle,
+  zIndex
+}: {
+  renderBuffer: RenderBuffer;
+  start: Position;
+  angleStart: number;
+  angleEnd: number;
+  radius: number;
+  fillStyle: CanvasRenderingContext2D["fillStyle"];
+  zIndex: number;
+}) => {
+  renderBuffer.push({
+    action: (ctx) => {
+      // Translate angles such that 0 is upwards
+      const startAngle = angleStart - Math.PI / 2;
+      const endAngle = angleEnd - Math.PI / 2;
+      ctx.save();
+      ctx.fillStyle = fillStyle;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(
+        x + Math.cos(startAngle) * radius,
+        y + Math.sin(startAngle) * radius
+      );
+      ctx.arc(x, y, radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    },
+    zIndex
+  });
+};
 export const drawLine = ({
   renderBuffer,
   start: [xStart, yStart],

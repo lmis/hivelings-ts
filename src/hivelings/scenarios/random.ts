@@ -2,7 +2,7 @@ import { EntityType } from "hivelings/types/common";
 import { EntityInsert, SimulationState } from "hivelings/types/simulation";
 import { addEntity } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
-import { float, integer } from "rng/utils";
+import { float, integer, pickRandom } from "rng/utils";
 import { crossProduct, distance, Position, range } from "utils";
 
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
@@ -19,6 +19,8 @@ export const makeRandomScenario = (): SimulationState => {
     float(rng, -15, 15),
     float(rng, -15, 15)
   ];
+  const randomColor = () =>
+    pickRandom(rng, ["255,0,0", "0,0,255", "0,255,255", "255,255,0"]) ?? "255,0,0";
 
   const hivelings: EntityInsert[] = [];
   while (hivelings.length < numberOfHivelings) {
@@ -30,6 +32,7 @@ export const makeRandomScenario = (): SimulationState => {
     ) {
       hivelings.push({
         midpoint,
+        color: randomColor(),
         radius: hivelingRadius,
         type: HIVELING,
         memory: null,
