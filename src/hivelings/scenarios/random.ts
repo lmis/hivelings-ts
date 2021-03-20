@@ -1,6 +1,6 @@
 import { EntityType } from "hivelings/types/common";
-import { EntityInsert, SimulationState } from "hivelings/types/simulation";
-import { addEntity } from "hivelings/simulation";
+import { SimulationState } from "hivelings/types/simulation";
+import { nextZIndex } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { float, integer, pickRandom } from "rng/utils";
 import { crossProduct, distance, Position, range } from "utils";
@@ -20,17 +20,25 @@ export const makeRandomScenario = (): SimulationState => {
     float(rng, -15, 15)
   ];
   const randomColor = () =>
-    pickRandom(rng, ["255,0,0", "0,0,255", "0,255,255", "255,255,0"]) ?? "255,0,0";
+    pickRandom(rng, ["255,0,0", "0,0,255", "0,255,255", "255,255,0"]) ??
+    "255,0,0";
 
-  const hivelings: EntityInsert[] = [];
-  while (hivelings.length < numberOfHivelings) {
+  const state: SimulationState = {
+    score: 0,
+    nextId: 0,
+    entities: [],
+    rngState: rng.getState()
+  };
+  while (state.entities.length < numberOfHivelings) {
     const midpoint = randomPosition();
     if (
-      hivelings.every(
+      state.entities.every(
         (e) => distance(e.midpoint, midpoint) >= 2 * hivelingRadius
       )
     ) {
-      hivelings.push({
+      state.entities.push({
+        identifier: state.nextId++,
+        zIndex: nextZIndex(state.entities, midpoint, hivelingRadius),
         midpoint,
         color: randomColor(),
         radius: hivelingRadius,
@@ -42,31 +50,41 @@ export const makeRandomScenario = (): SimulationState => {
     }
   }
 
-  const hives: EntityInsert[] = Array.from({ length: numberOfHives }).map(
-    (_) => ({
-      midpoint: randomPosition(),
-      radius: 0.5,
+  for (let hive = 0; hive < numberOfHives; ++hive) {
+    const midpoint = randomPosition();
+    const radius = 0.5;
+    state.entities.push({
+      identifier: state.nextId++,
+      zIndex: nextZIndex(state.entities, midpoint, radius),
+      midpoint,
+      radius,
       type: HIVE_ENTRANCE
-    })
-  );
+    });
+  }
 
-  const foodItems: EntityInsert[] = Array.from({
-    length: numberOfFoodItems
-  }).map((_) => ({
-    midpoint: randomPosition(),
-    radius: 0.5,
-    type: FOOD
-  }));
+  for (let foodItem = 0; foodItem < numberOfFoodItems; ++foodItem) {
+    const midpoint = randomPosition();
+    const radius = 0.5;
+    state.entities.push({
+      identifier: state.nextId++,
+      zIndex: nextZIndex(state.entities, midpoint, radius),
+      midpoint,
+      radius,
+      type: FOOD
+    });
+  }
 
-  const obstacles: EntityInsert[] = [];
-  while (obstacles.length < numberOfObstacles) {
+  const obstaclesAdded = 0;
+  while (obstaclesAdded < numberOfObstacles) {
     const midpoint = randomPosition();
     if (
-      [...hives, ...foodItems, ...obstacles, ...hivelings].every(
+      state.entities.every(
         (e) => distance(e.midpoint, midpoint) >= e.radius + obstacleRadius
       )
     ) {
-      obstacles.push({
+      state.entities.push({
+        identifier: state.nextId++,
+        zIndex: nextZIndex(state.entities, midpoint, obstacleRadius),
         midpoint,
         radius: obstacleRadius,
         type: OBSTACLE,
@@ -77,23 +95,16 @@ export const makeRandomScenario = (): SimulationState => {
 
   const topAndBottom = crossProduct(range(-16, 16), [-16, 16]) as Position[];
   const sides = crossProduct([-16, 16], range(-16, 17)) as Position[];
-  return [
-    ...hivelings,
-    ...hives,
-    ...foodItems,
-    ...obstacles,
-    ...[...topAndBottom, ...sides].map(
-      (position): EntityInsert => ({
-        midpoint: position,
-        radius: 0.5,
-        type: OBSTACLE,
-        style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
-      })
-    )
-  ].reduce(addEntity, {
-    entities: [],
-    nextId: 0,
-    score: 0,
-    rngState: rng.getState()
-  });
+  [...topAndBottom, ...sides].forEach((midpoint) =>
+    state.entities.push({
+      identifier: state.nextId++,
+      zIndex: nextZIndex(state.entities, midpoint, obstacleRadius),
+      midpoint,
+      radius: obstacleRadius,
+      type: OBSTACLE,
+      style: integer(rng, 0, 10) > 3 ? "treeStump" : "rocks"
+    })
+  );
+  state.rngState = rng.getState();
+  return state;
 };

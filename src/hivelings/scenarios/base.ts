@@ -1,6 +1,6 @@
 import { EntityType } from "hivelings/types/common";
-import { EntityInsert, SimulationState } from "hivelings/types/simulation";
-import { addEntity } from "hivelings/simulation";
+import { SimulationState } from "hivelings/types/simulation";
+import { nextZIndex } from "hivelings/simulation";
 import { makeStdLaggedFibo } from "rng/laggedFibo";
 import { crossProduct, Position, range } from "utils";
 import { integer } from "rng/utils";
@@ -28,44 +28,52 @@ export const makeBaseScenario = (): SimulationState => {
   const topAndBottom: Position[] = crossProduct(range(-9, 10), [-16, 16]);
   const sides: Position[] = crossProduct([-10, 10], range(-16, 17));
 
-  return [
-    ...hivelingSpec.map(
-      ([color, midpoint, orientation], i): EntityInsert => ({
-        color,
-        midpoint,
-        radius: 0.5,
-        type: HIVELING,
-        memory: null,
-        hasFood: false,
-        orientation
-      })
-    ),
-    ...hivePositions.map(
-      (midpoint): EntityInsert => ({
-        midpoint,
-        radius: 0.5,
-        type: HIVE_ENTRANCE
-      })
-    ),
-    ...[...topAndBottom, ...sides].map(
-      (midpoint): EntityInsert => ({
-        midpoint,
-        radius: 0.5,
-        type: OBSTACLE,
-        style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
-      })
-    ),
-    ...[...foodPositions].map(
-      (midpoint): EntityInsert => ({
-        midpoint,
-        radius: 0.5,
-        type: FOOD
-      })
-    )
-  ].reduce(addEntity, {
+  const state: SimulationState = {
     entities: [],
     nextId: 0,
-    score: 0,
+    score: 100,
     rngState: rng.getState()
-  });
+  };
+  hivelingSpec.forEach(([color, midpoint, orientation], i) =>
+    state.entities.push({
+      identifier: state.nextId++,
+      color,
+      midpoint,
+      radius: 0.5,
+      type: HIVELING,
+      memory: null,
+      hasFood: false,
+      orientation,
+      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+    })
+  );
+  hivePositions.forEach((midpoint) =>
+    state.entities.push({
+      identifier: state.nextId++,
+      midpoint,
+      radius: 0.5,
+      type: HIVE_ENTRANCE,
+      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+    })
+  );
+  [...topAndBottom, ...sides].forEach((midpoint) =>
+    state.entities.push({
+      identifier: state.nextId++,
+      midpoint,
+      radius: 0.5,
+      type: OBSTACLE,
+      style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks",
+      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+    })
+  );
+  foodPositions.forEach((midpoint) =>
+    state.entities.push({
+      identifier: state.nextId++,
+      midpoint,
+      radius: 0.5,
+      type: FOOD,
+      zIndex: nextZIndex(state.entities, midpoint, 0.5)
+    })
+  );
+  return state;
 };
