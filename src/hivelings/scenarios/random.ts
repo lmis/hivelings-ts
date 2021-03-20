@@ -95,7 +95,7 @@ export const makeRandomScenario = (): SimulationState => {
       midpoint,
       radius: obstacleRadius,
       type: OBSTACLE,
-      style: integer(rng, 0, 10) > 3 ? "treeStump" : "rocks"
+      style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
     })
   );
   state.rngState = rng.getState();
