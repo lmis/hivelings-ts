@@ -228,7 +228,10 @@ export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
         ? entitiesInSliver
         : entitiesInSliver.slice(0, occluderIndex + 1)
       ).map((e) => e.identifier),
-      dist: entitiesInSliver[occluderIndex]?.dist ?? sightDistance,
+      dist: min(
+        entitiesInSliver[occluderIndex]?.dist ?? Infinity,
+        sightDistance
+      ),
       angleStart: orientation + sliverStart,
       angleEnd: orientation + sliverStart + sliverWidth
     };
