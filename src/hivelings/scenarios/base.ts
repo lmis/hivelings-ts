@@ -9,7 +9,7 @@ const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE } = EntityType;
 
 export const makeBaseScenario = (): SimulationState => {
   const rng = makeStdLaggedFibo("baseScenarioSeed");
-  const hivelinPositions: [string, Position, number][] = [
+  const hivelingSpec: [string, Position, number][] = [
     ["255,0,0", [1, 4], 260],
     ["0,255,0", [-3, 12], 35],
     ["0,0,255", [0, -6], 70],
@@ -29,7 +29,7 @@ export const makeBaseScenario = (): SimulationState => {
   const sides: Position[] = crossProduct([-10, 10], range(-16, 17));
 
   return [
-    ...hivelinPositions.map(
+    ...hivelingSpec.map(
       ([color, midpoint, orientation], i): EntityInsert => ({
         color,
         midpoint,

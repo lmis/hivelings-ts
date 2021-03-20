@@ -82,5 +82,4 @@ export interface Input {
   visibleEntities: Entity[];
   memory: unknown | null;
   hasFood: boolean;
-  randomSeed: string;
 }

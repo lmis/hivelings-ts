@@ -15,8 +15,8 @@ import { hBounds, vBounds, debugHiveMind } from "config";
 import {
   applyOutput,
   makeInput,
-  stripSimulationProps,
-  fadeTrails
+  fadeTrails,
+  simulationInputToPlayerInput
 } from "hivelings/simulation";
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
@@ -56,18 +56,10 @@ const prettyPrintEntity = (e: Entity): string => {
   );
 };
 
-interface Metadata {
-  maxMoveDistanceByHivelingId: Map<number, number>;
-  interactableEntitiesByHivelingId: Map<number, Entity[]>;
-  visibleEntitiesByHivelingId: Map<number, Entity[]>;
-  visibilityEndpointsByHivelingId: Map<number, Input["visibilityEndpoints"]>;
-  outdated: boolean;
-}
-
 export interface GameState {
   simulationState: SimulationState;
   simulationStateHistory: SimulationState[];
-  metadata: Metadata;
+  cachedInput: Map<number, Input>;
   scale: number;
   cameraPosition: Position;
   speed: number;
@@ -123,7 +115,7 @@ const handleKeyPresses = (
   ) {
     state.simulationState = state.simulationStateHistory[0];
     state.simulationStateHistory = state.simulationStateHistory.slice(1);
-    state.metadata.outdated = true;
+    state.cachedInput.clear();
   }
 
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
@@ -183,15 +175,9 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.RANDOM),
+    simulationState: loadStartingState(ScenarioName.BASE),
     simulationStateHistory: [],
-    metadata: {
-      maxMoveDistanceByHivelingId: new Map(),
-      interactableEntitiesByHivelingId: new Map(),
-      visibleEntitiesByHivelingId: new Map(),
-      visibilityEndpointsByHivelingId: new Map(),
-      outdated: true
-    },
+    cachedInput: new Map(),
     scale: 20,
     cameraPosition: [0, 0],
     speed: 0,
@@ -263,16 +249,24 @@ const main = async () => {
         );
 
         for (const currentHiveling of shuffledHivelings) {
-          const input = {
-            ...makeInput(state.simulationState.entities, currentHiveling),
-            randomSeed: randomPrintable(rng, rng.getState().sequence.length)
-          };
+          const randomSeed = randomPrintable(
+            rng,
+            rng.getState().sequence.length
+          );
+          /* Not using cached input here because it's not worth worrying 
+             about the race-condition arising from invalidating the cache
+             here (async) and recomputing it in the main loop.
+           */
+          const input: Input = makeInput(
+            state.simulationState.entities,
+            currentHiveling
+          );
           const output: Output<unknown> = JSON.parse(
             await send(
               JSON.stringify(
                 debugHiveMind
-                  ? { ...input, currentHiveling }
-                  : stripSimulationProps(input)
+                  ? { ...input, randomSeed, currentHiveling }
+                  : simulationInputToPlayerInput(input, randomSeed)
               )
             )
           );
@@ -282,10 +276,10 @@ const main = async () => {
             input,
             output
           );
-          state.metadata.outdated = true;
+          state.cachedInput.clear();
         }
         state.simulationState = fadeTrails(state.simulationState);
-        state.metadata.outdated = true;
+        state.cachedInput.clear();
         state.simulationState.rngState = rng.getState();
         state.sending = false;
       })();
@@ -297,35 +291,14 @@ const main = async () => {
 
     if (
       (state.showInteractions || state.showVision) &&
-      state.metadata.outdated
+      state.cachedInput.size === 0
     ) {
-      const {
-        visibleEntitiesByHivelingId,
-        interactableEntitiesByHivelingId,
-        maxMoveDistanceByHivelingId,
-        visibilityEndpointsByHivelingId
-      } = state.metadata;
-      visibilityEndpointsByHivelingId.clear();
-      interactableEntitiesByHivelingId.clear();
-      maxMoveDistanceByHivelingId.clear();
-      visibilityEndpointsByHivelingId.clear();
-
       state.simulationState.entities.filter(isHiveling).forEach((h) => {
-        const {
-          maxMoveDistance,
-          visibleEntities,
-          visibilityEndpoints,
-          interactableEntities
-        } = makeInput(state.simulationState.entities, h);
-        interactableEntitiesByHivelingId.set(
+        state.cachedInput.set(
           h.identifier,
-          interactableEntities
+          makeInput(state.simulationState.entities, h)
         );
-        visibleEntitiesByHivelingId.set(h.identifier, visibleEntities);
-        visibilityEndpointsByHivelingId.set(h.identifier, visibilityEndpoints);
-        maxMoveDistanceByHivelingId.set(h.identifier, maxMoveDistance);
       });
-      state.metadata.outdated = false;
     }
     const {
       scale,
@@ -409,8 +382,8 @@ const main = async () => {
       });
 
       if (showInteractions && e.type === HIVELING) {
-        const maxMoveDistance =
-          state.metadata.maxMoveDistanceByHivelingId.get(e.identifier) ?? 0;
+        const cachedInput = state.cachedInput.get(e.identifier);
+        const maxMoveDistance = cachedInput?.maxMoveDistance ?? 0;
         drawCircle({
           renderBuffer,
           fillStyle: `rgba(${e.color}, 0.5)`,
@@ -423,10 +396,7 @@ const main = async () => {
             ])
           )
         });
-        (
-          state.metadata.interactableEntitiesByHivelingId.get(e.identifier) ??
-          []
-        ).forEach((other) =>
+        (cachedInput?.interactableEntities ?? []).forEach((other) =>
           drawCircle({
             renderBuffer,
             position: transformPositionToPixelSpace(
@@ -443,22 +413,21 @@ const main = async () => {
         );
       }
       if (showVision && e.type === HIVELING) {
-        (
-          state.metadata.visibilityEndpointsByHivelingId.get(e.identifier) ?? []
-        ).forEach(({ dist, angleStart, angleEnd }) => {
-          drawWedge({
-            renderBuffer,
-            start: transformPositionToPixelSpace(e.midpoint),
-            radius: dist * scale,
-            angleStart: toRad(angleStart),
-            angleEnd: toRad(angleEnd),
-            fillStyle: `rgba(${e.color},0.2)`,
-            zIndex: 500
-          });
-        });
-        (
-          state.metadata.visibleEntitiesByHivelingId.get(e.identifier) ?? []
-        ).forEach((other) =>
+        const cachedInput = state.cachedInput.get(e.identifier);
+        (cachedInput?.visibilityEndpoints ?? []).forEach(
+          ({ dist, angleStart, angleEnd }) => {
+            drawWedge({
+              renderBuffer,
+              start: transformPositionToPixelSpace(e.midpoint),
+              radius: dist * scale,
+              angleStart: toRad(angleStart),
+              angleEnd: toRad(angleEnd),
+              fillStyle: `rgba(${e.color},0.2)`,
+              zIndex: 500
+            });
+          }
+        );
+        (cachedInput?.visibleEntities ?? []).forEach((other) =>
           drawCircle({
             renderBuffer,
             position: transformPositionToPixelSpace(

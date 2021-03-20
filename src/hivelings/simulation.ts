@@ -184,10 +184,7 @@ const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
     : {})
 });
 
-export const makeInput = (
-  entities: Entity[],
-  hiveling: Hiveling
-): Omit<Input, "randomSeed"> => {
+export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
   const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
   const otherEntities = entities
     .filter((e) => e.identifier !== identifier)
@@ -306,14 +303,16 @@ const stripSimulationEntityProps = (e: Entity): PlayerEntity => {
       return { ...base, type: e.type };
   }
 };
-export const stripSimulationProps = ({
-  maxMoveDistance,
-  interactableEntities,
-  visibleEntities,
-  randomSeed,
-  hasFood,
-  memory
-}: Input): PlayerInput<unknown> => ({
+export const simulationInputToPlayerInput = (
+  {
+    maxMoveDistance,
+    interactableEntities,
+    visibleEntities,
+    hasFood,
+    memory
+  }: Input,
+  randomSeed: string
+): PlayerInput<unknown> => ({
   maxMoveDistance,
   interactableEntities: interactableEntities.map(stripSimulationEntityProps),
   visibleEntities: visibleEntities.map(stripSimulationEntityProps),
