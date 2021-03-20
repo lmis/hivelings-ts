@@ -69,27 +69,25 @@ export const applyOutput = (
   currentHiveling.memory = memory;
   currentHiveling.show = show;
 
-  switch (decision.type) {
-    case WAIT:
-      state.score -= 1;
-      return state;
-    case TURN:
-      const degrees =
-        decision.degrees < 0
-          ? 360 - (-decision.degrees % 360)
-          : decision.degrees % 360;
-      if (degrees === 0) {
-        state.score -= 2;
-        return state;
-      }
+  if (decision.type === WAIT) {
+    state.score -= 1;
+  }
+  if (decision.type === TURN) {
+    const degrees =
+      decision.degrees < 0
+        ? 360 - (-decision.degrees % 360)
+        : decision.degrees % 360;
+    if (degrees === 0) {
+      state.score -= 2;
+    } else {
       currentHiveling.orientation = orientation + (degrees % 360);
-      return state;
-    case MOVE:
-      const dist = decision.distance;
-      if (dist <= 0 || dist > maxMoveDistance) {
-        state.score -= 2;
-        return state;
-      }
+    }
+  }
+  if (decision.type === MOVE) {
+    const dist = decision.distance;
+    if (dist <= 0 || dist > maxMoveDistance) {
+      state.score -= 2;
+    } else {
       const movePosition = fromHivelingFrameOfReference(midpoint, orientation, [
         0,
         dist
@@ -104,44 +102,35 @@ export const applyOutput = (
       });
       currentHiveling.midpoint = movePosition;
       currentHiveling.zIndex = nextZIndex(state.entities, movePosition, radius);
-      return state;
-    case PICKUP:
-      const nutrition = interactableEntities.find((e) => e.type === FOOD);
-      if (nutrition && !hasFood) {
-        currentHiveling.hasFood = true;
-        state.entities = state.entities.filter(
-          (e) => e.identifier !== nutrition.identifier
-        );
-      } else {
-        state.score -= 1;
-      }
-      return state;
-    case DROP:
-      const hiveEntrance = interactableEntities.find(
-        (e) => e.type === HIVE_ENTRANCE
-      );
-      if (hasFood) {
-        currentHiveling.hasFood = false;
-        if (hiveEntrance) {
-          state.score += 15;
-        } else {
-          const targetPosition: Position = fromHivelingFrameOfReference(
-            midpoint,
-            orientation,
-            [0, 1]
-          );
-
-          insert(state, {
-            type: FOOD,
-            midpoint: targetPosition,
-            radius: 0.5
-          });
-        }
-      } else {
-        state.score -= 2;
-      }
-      return state;
+    }
   }
+  if (decision.type === PICKUP) {
+    const nutrition = interactableEntities.find((e) => e.type === FOOD);
+    if (nutrition && !hasFood) {
+      currentHiveling.hasFood = true;
+      state.entities = state.entities.filter(
+        (e) => e.identifier !== nutrition.identifier
+      );
+    } else {
+      state.score -= 1;
+    }
+  }
+  if (decision.type === DROP && hasFood) {
+    currentHiveling.hasFood = false;
+    if (interactableEntities.some((e) => e.type === HIVE_ENTRANCE)) {
+      state.score += 15;
+    } else {
+      insert(state, {
+        type: FOOD,
+        midpoint: fromHivelingFrameOfReference(midpoint, orientation, [0, 1]),
+        radius: 0.5
+      });
+    }
+  }
+  if (decision.type === DROP && !hasFood) {
+    state.score -= 2;
+  }
+  return state;
 };
 
 const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
