@@ -16,10 +16,10 @@ import {
   toDeg,
   toHivelingFrameOfReference
 } from "hivelings/transformations";
-import { distance, Position } from "utils";
+import { distance, Position, rangeSteps, sortBy } from "utils";
 import { fieldOfView, interactionArea, sightDistance } from "config";
 
-const { atan2, min, max, sqrt, pow } = Math;
+const { asin, atan2, min, max, sqrt, pow } = Math;
 const { MOVE, TURN, PICKUP, DROP, WAIT } = DecisionType;
 const { HIVELING, HIVE_ENTRANCE, FOOD, OBSTACLE, TRAIL } = EntityType;
 
@@ -184,69 +184,57 @@ const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
     : {})
 });
 
-type EntityVisibility = Entity & {
-  lower: number;
-  upper: number;
-  dist: number;
-};
-
 export const makeInput = (
   entities: Entity[],
   hiveling: Hiveling
 ): Omit<Input, "randomSeed"> => {
   const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
   const otherEntities = entities.filter((e) => e.identifier !== identifier);
-  const entityVisibilities = otherEntities
-    .map(
-      (e): EntityVisibility => {
-        const position = e.midpoint;
-        const dist = distance(midpoint, position);
-        if (dist <= e.radius) {
-          return {
-            ...e,
-            lower: 0,
-            upper: 360,
-            dist
-          };
-        }
+  const visibleEntityIds = new Set<number>();
+  const sliverWidth = 1;
+  rangeSteps(-fieldOfView / 2, sliverWidth, fieldOfView / 2).forEach(
+    (sliverStart) => {
+      const entitiesInSliver = sortBy(
+        (e) => distance(midpoint, e.midpoint),
+        otherEntities.filter((e) => {
+          const position = e.midpoint;
+          const dist = distance(midpoint, position);
+          if (dist <= e.radius) {
+            return true;
+          }
 
-        const [x, y] = toHivelingFrameOfReference(
-          midpoint,
-          orientation - fieldOfView / 2,
-          position
-        );
+          const [x, y] = toHivelingFrameOfReference(
+            midpoint,
+            orientation + sliverStart,
+            position
+          );
 
-        const angle = atan2(x, y);
-        const alpha = Math.asin(e.radius / dist);
-        const lower = toDeg(angle - alpha);
-        const upper = toDeg(angle + alpha);
+          const angle = atan2(x, y);
+          const alpha = asin(e.radius / dist);
+          const left = toDeg(angle - alpha);
+          const right = toDeg(angle + alpha);
 
-        return { ...e, lower, upper, dist };
-      }
-    )
-    .filter(
-      ({ dist, radius, upper }) =>
-        dist <= sightDistance + radius && upper <= fieldOfView
-    );
-  const occluders = entityVisibilities.filter((e) =>
-    [HIVELING, OBSTACLE].includes(e.type)
+          return (
+            dist <= sightDistance + e.radius &&
+            (right < sliverWidth || left < sliverWidth || left > right)
+          );
+        })
+      );
+      const occluderIndex = entitiesInSliver.findIndex((e) =>
+        [OBSTACLE, HIVELING].includes(e.type)
+      );
+      return (occluderIndex === -1
+        ? entitiesInSliver
+        : entitiesInSliver.slice(0, occluderIndex + 1)
+      ).forEach((e) => {
+        visibleEntityIds.add(e.identifier);
+      });
+    }
   );
-
-  const nonOccludedEntityVisibilities = entityVisibilities.filter((e) =>
-    occluders.every(
-      (o) =>
-        o.identifier === e.identifier ||
-        o.dist > e.dist ||
-        o.lower > e.lower ||
-        o.upper < e.upper
-    )
-  );
-
   const visibleEntities = otherEntities
-    .filter((e) =>
-      nonOccludedEntityVisibilities.some((v) => v.identifier === e.identifier)
-    )
+    .filter((e) => visibleEntityIds.has(e.identifier))
     .map((e) => toHivelingSpace(hiveling, e));
+
   const otherEntitiesInHivelingReference = otherEntities.map((e) =>
     toHivelingSpace(hiveling, e)
   );
