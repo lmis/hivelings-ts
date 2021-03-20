@@ -29,7 +29,8 @@ export const makeRandomScenario = (): SimulationState => {
     entities: [],
     rngState: rng.getState()
   };
-  while (state.entities.length < numberOfHivelings) {
+  let hivelingsAdded = 0;
+  while (hivelingsAdded < numberOfHivelings) {
     const midpoint = randomPosition();
     if (
       state.entities.every(
@@ -45,6 +46,7 @@ export const makeRandomScenario = (): SimulationState => {
         hasFood: integer(rng, 0, 2) === 0,
         orientation: integer(rng, 0, 359)
       });
+      hivelingsAdded++;
     }
   }
 
@@ -68,7 +70,7 @@ export const makeRandomScenario = (): SimulationState => {
     });
   }
 
-  const obstaclesAdded = 0;
+  let obstaclesAdded = 0;
   while (obstaclesAdded < numberOfObstacles) {
     const midpoint = randomPosition();
     if (
@@ -82,6 +84,7 @@ export const makeRandomScenario = (): SimulationState => {
         type: OBSTACLE,
         style: integer(rng, 0, 10) > 3 ? "treeStump" : "rocks"
       });
+      obstaclesAdded++;
     }
   }
 

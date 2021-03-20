@@ -175,7 +175,7 @@ const main = async () => {
       : JSON.stringify(demoHiveMind(JSON.parse(message)));
 
   let state: GameState = {
-    simulationState: loadStartingState(ScenarioName.BASE),
+    simulationState: loadStartingState(ScenarioName.RANDOM),
     simulationStateHistory: [],
     cachedInput: new Map(),
     scale: 20,
