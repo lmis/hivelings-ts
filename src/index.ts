@@ -10,7 +10,15 @@ import {
   drawCircle,
   drawWedge
 } from "canvas/draw";
-import { Position, sortBy, clamp, hasAll, distance, uniqueBy } from "utils";
+import {
+  Position,
+  sortBy,
+  clamp,
+  hasAll,
+  distance,
+  uniqueBy,
+  maxBy
+} from "utils";
 import { hBounds, vBounds } from "config";
 import {
   applyOutput,
@@ -63,9 +71,9 @@ export interface GameState {
   scale: number;
   cameraPosition: Position;
   speed: number;
+  sidebarEntityId: number | null;
   showVision: boolean;
   showInteractions: boolean;
-  highlighted: Set<number>;
   quitting: boolean;
   sending: boolean;
   framesSinceLastAdvance: number;
@@ -181,12 +189,12 @@ const main = async () => {
     simulationState: loadStartingState(scenario),
     simulationStateHistory: [],
     cachedInput: new Map(),
+    sidebarEntityId: null,
     scale: 20,
     cameraPosition: [0, 0],
     speed: 0,
     showVision: false,
     showInteractions: false,
-    highlighted: new Set(),
     quitting: false,
     sending: false,
     framesSinceLastAdvance: 0
@@ -354,7 +362,10 @@ const main = async () => {
     drawTextbox({
       renderBuffer,
       position: [canvasWidth / 2, (9 * canvasHeight) / 100],
-      lines: [` Score: ${state.simulationState.score}` + (debugHiveMind ? " (DEBUG)" : "")],
+      lines: [
+        ` Score: ${state.simulationState.score}` +
+          (debugHiveMind ? " (DEBUG)" : "")
+      ],
       zIndex: 900
     });
 
@@ -374,16 +385,26 @@ const main = async () => {
         }
       })();
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
-      const [x, y] = transformPositionToPixelSpace(e.midpoint);
+      const position = transformPositionToPixelSpace(e.midpoint);
       drawImage({
         renderBuffer,
         image,
         width: 2 * e.radius * scale,
         height: 2 * e.radius * scale,
         angle,
-        position: [x, y],
+        position,
         zIndex: e.zIndex
       });
+      if (e.identifier === state.sidebarEntityId) {
+        drawCircle({
+          renderBuffer,
+          strokeStyle: `rgba(${"color" in e ? e.color : "255,255,255"}, 0.5)`,
+          lineWidth: 0.1 * scale,
+          radius: 1.1 * e.radius * scale,
+          zIndex: 800,
+          position
+        });
+      }
 
       if (showInteractions && e.type === HIVELING) {
         const cachedInput = state.cachedInput.get(e.identifier);
@@ -456,18 +477,13 @@ const main = async () => {
       const underCursor = entities.filter(
         (e) => distance(e.midpoint, mousePosition) < e.radius
       );
+
       if (mouse.clicking) {
-        if (underCursor.length === 0) {
-          state.highlighted.clear();
-        } else {
-          underCursor.map((e) => state.highlighted.add(e.identifier));
-        }
+        state.sidebarEntityId =
+          maxBy((e) => -e.zIndex, underCursor)?.identifier ?? null;
       }
 
-      const highlightedEntities = uniqueBy((e) => e.identifier, [
-        ...entities.filter((e) => state.highlighted.has(e.identifier)),
-        ...underCursor
-      ]);
+      const highlightedEntities = uniqueBy((e) => e.identifier, underCursor);
 
       highlightedEntities.forEach((h, i) => {
         const lines = sortBy(
@@ -486,6 +502,29 @@ const main = async () => {
           lines,
           zIndex: 1000 + i
         });
+      });
+    }
+
+    const sidebarEntity = entities.find(
+      (e) => e.identifier === state.sidebarEntityId
+    );
+    if (sidebarEntity) {
+      const lines = sortBy(
+        (e) => -e.zIndex,
+        entities.filter(
+          (e) =>
+            distance(sidebarEntity.midpoint, e.midpoint) <
+            sidebarEntity.radius + e.radius - 0.000001
+        )
+      )
+        .map(prettyPrintEntity)
+        .join("\n")
+        .split("\n");
+      drawTextbox({
+        renderBuffer,
+        position: [(88 * canvasWidth) / 100, lines.length * 24],
+        lines,
+        zIndex: 900
       });
     }
 

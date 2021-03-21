@@ -143,22 +143,33 @@ export const drawCircle = ({
   renderBuffer,
   radius,
   fillStyle,
+  strokeStyle,
+  lineWidth = 1,
   position: [x, y],
   zIndex
 }: {
   renderBuffer: RenderBuffer;
   radius: number;
-  fillStyle: CanvasRenderingContext2D["fillStyle"];
+  fillStyle?: CanvasRenderingContext2D["fillStyle"];
+  strokeStyle?: CanvasRenderingContext2D["strokeStyle"];
+  lineWidth?: number;
   position: Position;
   zIndex: number;
 }) => {
   renderBuffer.push({
     action: (ctx) => {
       ctx.save();
-      ctx.fillStyle = fillStyle;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, 2 * Math.PI);
-      ctx.fill();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = strokeStyle;
+        ctx.stroke();
+      }
       ctx.restore();
     },
     zIndex
