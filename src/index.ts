@@ -496,16 +496,14 @@ const main = async () => {
       const highlightedEntities = uniqueBy((e) => e.identifier, underCursor);
 
       highlightedEntities.forEach((h, i) => {
-        const lines = sortBy(
+        const lines: string[] = [];
+        sortBy(
           (e) => -e.zIndex,
           entities.filter(
             (e) =>
               distance(h.midpoint, e.midpoint) < h.radius + e.radius - 0.000001
           )
-        )
-          .map((e) => prettyPrintEntity(e).join("\n"))
-          .join("\n")
-          .split("\n");
+        ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
         drawTextbox({
           renderBuffer,
           position: transformPositionToPixelSpace(h.midpoint),
@@ -519,17 +517,15 @@ const main = async () => {
       (e) => e.identifier === state.sidebarEntityId
     );
     if (sidebarEntity) {
-      const lines = sortBy(
+      const lines: string[] = [];
+      sortBy(
         (e) => -e.zIndex,
         entities.filter(
           (e) =>
             distance(sidebarEntity.midpoint, e.midpoint) <
             sidebarEntity.radius + e.radius - 0.000001
         )
-      )
-        .map((e) => prettyPrintEntity(e).join("\n"))
-        .join("\n")
-        .split("\n");
+      ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
       drawTextbox({
         renderBuffer,
         position: [(88 * canvasWidth) / 100, lines.length * 24],
