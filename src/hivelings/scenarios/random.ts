@@ -11,6 +11,7 @@ export const makeRandomScenario = (): SimulationState => {
   const rng = makeStdLaggedFibo("randomScenarioSeed");
   const hivelingRadius = 0.5;
   const obstacleRadius = 0.5;
+  const foodRadius = 0.5;
   const numberOfHivelings = 10;
   const numberOfHives = 2;
   const numberOfFoodItems = 50;
@@ -43,7 +44,16 @@ export const makeRandomScenario = (): SimulationState => {
         radius: hivelingRadius,
         type: HIVELING,
         memory: null,
-        hasFood: integer(rng, 0, 2) === 0,
+        carriedEntity:
+          integer(rng, 0, 2) === 0
+            ? {
+                identifier: state.nextId++,
+                midpoint: [0, 0],
+                radius: foodRadius,
+                type: FOOD,
+                zIndex: 0
+              }
+            : null,
         orientation: integer(rng, 0, 359)
       });
       hivelingsAdded++;
@@ -51,21 +61,17 @@ export const makeRandomScenario = (): SimulationState => {
   }
 
   for (let hive = 0; hive < numberOfHives; ++hive) {
-    const midpoint = randomPosition();
-    const radius = 0.5;
     insert(state, {
-      midpoint,
-      radius,
+      midpoint: randomPosition(),
+      radius: 0.5,
       type: HIVE_ENTRANCE
     });
   }
 
   for (let foodItem = 0; foodItem < numberOfFoodItems; ++foodItem) {
-    const midpoint = randomPosition();
-    const radius = 0.5;
     insert(state, {
-      midpoint,
-      radius,
+      midpoint: randomPosition(),
+      radius: foodRadius,
       type: FOOD
     });
   }

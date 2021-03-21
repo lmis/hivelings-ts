@@ -10,7 +10,7 @@ export interface Hiveling {
   orientation: number; // Degrees w.r.t North
   zIndex: number;
   type: EntityType.HIVELING;
-  hasFood: boolean;
+  carriedEntity: Entity | null;
   memory: unknown | null;
   show?: string;
 }
@@ -79,6 +79,6 @@ export interface Input {
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];
+  carriedType: EntityType | null;
   memory: unknown | null;
-  hasFood: boolean;
 }

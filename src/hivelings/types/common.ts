@@ -18,7 +18,7 @@ export type Decision =
   | { type: DecisionType.TURN; degrees: number }
   | { type: DecisionType.DROP }
   | { type: DecisionType.MOVE; distance: number }
-  | { type: DecisionType.PICKUP }
+  | { type: DecisionType.PICKUP; index: number }
   | { type: DecisionType.WAIT };
 
 export interface Output<T> {

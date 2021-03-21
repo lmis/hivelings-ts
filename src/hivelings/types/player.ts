@@ -5,7 +5,7 @@ export interface Hiveling {
   midpoint: Position;
   zIndex: number;
   type: EntityType.HIVELING;
-  hasFood: boolean;
+  carriedType: EntityType | null;
 }
 
 export interface Trail {
@@ -40,7 +40,7 @@ export interface Input<T> {
   maxMoveDistance: number;
   interactableEntities: Entity[];
   visibleEntities: Entity[];
-  hasFood: boolean;
+  carriedType: EntityType | null;
   memory: T | null;
   randomSeed: string;
 }

@@ -43,25 +43,27 @@ import { loadLaggedFibo } from "rng/laggedFibo";
 
 const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
 
-const prettyPrintEntity = (e: Entity): string => {
+const prettyPrintEntity = (e: Entity, subItem: boolean = false): string[] => {
   const commonProps: (keyof Entity)[] = ["identifier", "zIndex", "radius"];
-  const trailProps: (keyof Trail)[] = ["hivelingId", "orientation", "lifetime"];
-  const hivelingProps: (keyof Hiveling)[] = ["hasFood", "orientation"];
-  const position = `${e.type}\n x: ${e.midpoint[0]}\n y: ${e.midpoint[1]}`;
   const props: string[] =
     e.type === HIVELING
-      ? [...commonProps, ...hivelingProps]
+      ? [...commonProps, "orientation"]
       : e.type === TRAIL
-      ? [...commonProps, ...trailProps]
+      ? [...commonProps, "hivelingId", "orientation", "lifetime"]
       : e.type === OBSTACLE
       ? [...commonProps, "style"]
       : commonProps;
-  return (
-    position +
-    "\n" +
-    props.map((k: string) => ` ${k}: ${(e as any)[k]}`).join("\n") +
-    (e.type === HIVELING && e.show ? `\n show: ${e.show}` : "")
-  );
+  const res = subItem
+    ? []
+    : [e.type, ` x: ${e.midpoint[0]}`, ` y: ${e.midpoint[1]}`];
+
+  props.forEach((k: string) => res.push(` ${k}: ${(e as any)[k]}`));
+  if (e.type === HIVELING && e.show) res.push(` show: ${e.show}`);
+  if (e.type === HIVELING && e.carriedEntity) {
+    res.push(` carriedEntity: ${e.carriedEntity.type}`);
+    prettyPrintEntity(e.carriedEntity, true).forEach((x) => res.push(x));
+  }
+  return res.map((r) => (subItem ? "  " + r : r));
 };
 
 export interface GameState {
@@ -149,11 +151,10 @@ const shouldAdvance = (
   }
 };
 const assetDescriptors = {
-  hiveling: "Hiveling_iteration2.png",
-  hivelingWithFood: "Hiveling_strawberry.png",
-  food: "Strawberry.png",
-  trail: "Foot_prints.png",
-  hiveEntrance: "Burrow.png",
+  HIVELING: "Hiveling_iteration2.png",
+  FOOD: "Strawberry.png",
+  TRAIL: "Foot_prints.png",
+  HIVE_ENTRANCE: "Burrow.png",
   background: "autumn_leaves_green_hue.png",
   treeStump: "tree_stump.png",
   rocks: "Boulders.png"
@@ -282,7 +283,14 @@ const main = async () => {
             await send(
               JSON.stringify(
                 debugHiveMind
-                  ? { ...input, randomSeed, currentHiveling }
+                  ? {
+                      ...input,
+                      randomSeed,
+                      currentHiveling: {
+                        ...currentHiveling,
+                        carriedType: currentHiveling.carriedEntity?.type ?? null
+                      }
+                    }
                   : simulationInputToPlayerInput(input, randomSeed)
               )
             )
@@ -370,20 +378,7 @@ const main = async () => {
     });
 
     entities.forEach((e) => {
-      const image = (() => {
-        switch (e.type) {
-          case FOOD:
-            return assets.food;
-          case HIVELING:
-            return e.hasFood ? assets.hivelingWithFood : assets.hiveling;
-          case TRAIL:
-            return assets.trail;
-          case HIVE_ENTRANCE:
-            return assets.hiveEntrance;
-          case OBSTACLE:
-            return assets[e.style];
-        }
-      })();
+      const image = "style" in e ? assets[e.style] : assets[e.type];
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
       const position = transformPositionToPixelSpace(e.midpoint);
       drawImage({
@@ -403,6 +398,21 @@ const main = async () => {
           radius: 1.1 * e.radius * scale,
           zIndex: 800,
           position
+        });
+      }
+
+      if (e.type === HIVELING && e.carriedEntity) {
+        const other = e.carriedEntity;
+        drawImage({
+          renderBuffer,
+          image: "style" in other ? assets[other.style] : assets[other.type],
+          width: 2 * other.radius * scale,
+          height: 2 * other.radius * scale,
+          angle: angle + Math.PI / 2,
+          position: transformPositionToPixelSpace(
+            fromHivelingFrameOfReference(e.midpoint, e.orientation, [0, 0.4])
+          ),
+          zIndex: e.zIndex - 0.1
         });
       }
 
@@ -493,7 +503,7 @@ const main = async () => {
               distance(h.midpoint, e.midpoint) < h.radius + e.radius - 0.000001
           )
         )
-          .map(prettyPrintEntity)
+          .map((e) => prettyPrintEntity(e).join("\n"))
           .join("\n")
           .split("\n");
         drawTextbox({
@@ -517,7 +527,7 @@ const main = async () => {
             sidebarEntity.radius + e.radius - 0.000001
         )
       )
-        .map(prettyPrintEntity)
+        .map((e) => prettyPrintEntity(e).join("\n"))
         .join("\n")
         .split("\n");
       drawTextbox({

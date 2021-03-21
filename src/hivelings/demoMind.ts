@@ -135,7 +135,7 @@ export const hivelingMind = (input: Input<Memory>): Output<Memory> => {
     maxMoveDistance,
     visibleEntities,
     interactableEntities,
-    hasFood,
+    carriedType,
     randomSeed
   } = input;
   const rng = makeStdLaggedFibo(randomSeed);
@@ -153,11 +153,13 @@ export const hivelingMind = (input: Input<Memory>): Output<Memory> => {
   };
 
   // Desired thing in front, interact.
+  const hasFood = carriedType === FOOD;
   if (hasFood && interactableEntities.some((e) => e.type === HIVE_ENTRANCE)) {
     return takeDecision({ type: DROP });
   }
-  if (!hasFood && interactableEntities.some((e) => e.type === FOOD)) {
-    return takeDecision({ type: PICKUP });
+  const foodIndex = interactableEntities.findIndex((e) => e.type === FOOD);
+  if (!hasFood && foodIndex !== -1) {
+    return takeDecision({ type: PICKUP, index: foodIndex });
   }
 
   // Go search

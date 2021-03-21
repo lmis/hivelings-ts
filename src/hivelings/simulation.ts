@@ -50,7 +50,7 @@ export const fadeTrails = (s: SimulationState): void => {
 
 export const applyOutput = (
   state: SimulationState,
-  { midpoint, orientation, identifier, radius, hasFood }: Hiveling,
+  { midpoint, orientation, identifier, radius, carriedEntity }: Hiveling,
   { interactableEntities, maxMoveDistance }: Input,
   { decision, memory, show }: Output<unknown>
 ): void => {
@@ -96,30 +96,41 @@ export const applyOutput = (
     }
   }
   if (decision.type === PICKUP) {
-    const nutrition = interactableEntities.find((e) => e.type === FOOD);
-    if (nutrition && !hasFood) {
-      currentHiveling.hasFood = true;
-      state.entities = state.entities.filter(
-        (e) => e.identifier !== nutrition.identifier
-      );
-    } else {
+    const target = interactableEntities[decision.index];
+    if (!target) {
+      state.score -= 10;
+    } else if (carriedEntity) {
       state.score -= 1;
+    } else if (target.type !== FOOD) {
+      state.score -= 1;
+    } else {
+      currentHiveling.carriedEntity = target;
+      state.entities = state.entities.filter(
+        (e) => e.identifier !== target.identifier
+      );
     }
   }
-  if (decision.type === DROP && hasFood) {
-    currentHiveling.hasFood = false;
-    if (interactableEntities.some((e) => e.type === HIVE_ENTRANCE)) {
+  if (decision.type === DROP) {
+    currentHiveling.carriedEntity = null;
+    if (!carriedEntity) {
+      state.score -= 2;
+    } else if (
+      carriedEntity?.type === FOOD &&
+      interactableEntities.some((e) => e.type === HIVE_ENTRANCE)
+    ) {
       state.score += 15;
     } else {
-      insert(state, {
-        type: FOOD,
-        midpoint: fromHivelingFrameOfReference(midpoint, orientation, [0, 1]),
-        radius: 0.5
+      const targetPosition = fromHivelingFrameOfReference(
+        midpoint,
+        orientation,
+        [0, 1]
+      );
+      state.entities.push({
+        ...carriedEntity,
+        midpoint: targetPosition,
+        zIndex: nextZIndex(state.entities, targetPosition, carriedEntity.radius)
       });
     }
-  }
-  if (decision.type === DROP && !hasFood) {
-    state.score -= 2;
   }
 };
 
@@ -132,7 +143,7 @@ const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
 });
 
 export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
-  const { identifier, midpoint, orientation, memory, hasFood } = hiveling;
+  const { identifier, midpoint, orientation, memory, carriedEntity } = hiveling;
   const otherEntities = entities
     .filter((e) => e.identifier !== identifier)
     .map((e) => ({ ...e, dist: distance(midpoint, e.midpoint) }));
@@ -195,7 +206,7 @@ export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
     toHivelingSpace(hiveling, e)
   );
   const interactableEntities = otherEntitiesInHivelingReference.filter(
-    ({ midpoint: [x, y], radius }) =>
+    ({ midpoint: [x, y], radius, type }) =>
       x + radius > interactionArea.left &&
       x - radius < interactionArea.right &&
       y + radius > interactionArea.bottom &&
@@ -225,7 +236,7 @@ export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
     maxMoveDistance,
     interactableEntities,
     visibleEntities,
-    hasFood,
+    carriedType: carriedEntity?.type ?? null,
     memory
   };
 };
@@ -240,7 +251,7 @@ const stripSimulationEntityProps = (e: Entity): PlayerEntity => {
       return {
         ...base,
         type: e.type,
-        hasFood: e.hasFood
+        carriedType: e.carriedEntity?.type ?? null
       };
     case TRAIL:
       return {
@@ -258,7 +269,7 @@ export const simulationInputToPlayerInput = (
     maxMoveDistance,
     interactableEntities,
     visibleEntities,
-    hasFood,
+    carriedType,
     memory
   }: Input,
   randomSeed: string
@@ -266,7 +277,7 @@ export const simulationInputToPlayerInput = (
   maxMoveDistance,
   interactableEntities: interactableEntities.map(stripSimulationEntityProps),
   visibleEntities: visibleEntities.map(stripSimulationEntityProps),
-  hasFood,
+  carriedType,
   memory,
   randomSeed
 });
