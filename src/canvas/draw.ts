@@ -12,7 +12,7 @@ export const flush = (
   renderBuffer: RenderBuffer
 ) => {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  sortBy((c) => c.zIndex, renderBuffer).forEach(({ action }) => {
+  sortBy(c => c.zIndex, renderBuffer).forEach(({ action }) => {
     action(ctx);
   });
 };
@@ -35,7 +35,7 @@ export const drawImage = ({
   zIndex: number;
 }) => {
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
@@ -65,7 +65,7 @@ export const drawWedge = ({
   zIndex: number;
 }) => {
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       // Translate angles such that 0 is upwards
       const startAngle = angleStart - Math.PI / 2;
       const endAngle = angleEnd - Math.PI / 2;
@@ -99,7 +99,7 @@ export const drawLine = ({
   zIndex: number;
 }) => {
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(xStart, yStart);
@@ -130,7 +130,7 @@ export const drawAxisAlignedRect = ({
   zIndex: number;
 }) => {
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       ctx.save();
       ctx.fillStyle = fillStyle;
       ctx.fillRect(left, top, width, height);
@@ -158,7 +158,7 @@ export const drawCircle = ({
   zIndex: number;
 }) => {
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       ctx.save();
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -184,6 +184,7 @@ export const drawTextbox = ({
   lines,
   lineHeight,
   bottomPadding,
+  leftPadding,
   width,
   zIndex
 }: {
@@ -193,13 +194,13 @@ export const drawTextbox = ({
   width: number;
   lineHeight: number;
   bottomPadding: number;
+  leftPadding: number;
   lines: string[];
   zIndex: number;
 }) => {
   const borderThickness = 2;
-  const font = `${lineHeight}px Georgia`;
-  const leftPadding = 4;
-  const rightPadding = 4;
+  const font = `${lineHeight}px Mono`;
+  const rightPadding = leftPadding;
   const height = lineHeight * lines.length + bottomPadding;
 
   // Border
@@ -224,7 +225,7 @@ export const drawTextbox = ({
   });
 
   renderBuffer.push({
-    action: (ctx) => {
+    action: ctx => {
       ctx.save();
       ctx.fillStyle = "white";
       ctx.font = font;

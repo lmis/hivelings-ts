@@ -19,7 +19,7 @@ interface Memory {
 
 const prettyPrint = ({ recentDecisions }: Memory): string =>
   recentDecisions
-    .map((d) => {
+    .map(d => {
       switch (d.type) {
         case TURN:
           return "T" + d.degrees.toFixed(0);
@@ -70,7 +70,7 @@ const search = (
   // Find reachable target.
   const reachableTarget = pickRandom(
     rng,
-    visibleEntities.filter((e) => {
+    visibleEntities.filter(e => {
       if (e?.type !== soughtType) {
         return false;
       }
@@ -94,8 +94,8 @@ const search = (
   // Find closest target.
   const blockedInFront = maxMoveDistance < 0.2;
   const closestTarget = maxBy(
-    (e) => -walkingCost(e.midpoint),
-    visibleEntities.filter((e) => {
+    e => -walkingCost(e.midpoint),
+    visibleEntities.filter(e => {
       if (e.type !== soughtType) {
         return false;
       }
@@ -115,7 +115,7 @@ const search = (
   const minMoveDistance = 0.01;
 
   // No target found. Random walk.
-  const moveStreak = takeWhile((d) => d.type === MOVE, recentDecisions).length;
+  const moveStreak = takeWhile(d => d.type === MOVE, recentDecisions).length;
   if (maxMoveDistance > minMoveDistance && moveStreak <= 2) {
     return { type: MOVE, distance: maxMoveDistance };
   }
@@ -154,10 +154,10 @@ export const hivelingMind = (input: Input<Memory>): Output<Memory> => {
 
   // Desired thing in front, interact.
   const hasFood = carriedType === FOOD;
-  if (hasFood && interactableEntities.some((e) => e.type === HIVE_ENTRANCE)) {
+  if (hasFood && interactableEntities.some(e => e.type === HIVE_ENTRANCE)) {
     return takeDecision({ type: DROP });
   }
-  const foodIndex = interactableEntities.findIndex((e) => e.type === FOOD);
+  const foodIndex = interactableEntities.findIndex(e => e.type === FOOD);
   if (!hasFood && foodIndex !== -1) {
     return takeDecision({ type: PICKUP, index: foodIndex });
   }

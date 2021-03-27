@@ -22,7 +22,7 @@ export const rangeSteps = (
   );
 
 export const crossProduct = <T, S>(xs: T[], ys: S[]): [T, S][] =>
-  xs.flatMap((x) => ys.map((y) => [x, y] as [T, S]));
+  xs.flatMap(x => ys.map(y => [x, y] as [T, S]));
 
 export const clamp = (x: number, [xMin, xMax]: [number, number]) =>
   Math.min(xMax, Math.max(xMin, x));
@@ -41,14 +41,14 @@ export const maxBy = <T>(value: (x: T) => number, xs: T[]): T | null =>
 
 export const sortBy = <T>(value: (x: T) => number, xs: T[]): T[] =>
   xs
-    .map((x) => [x, value(x)] as [T, number])
+    .map(x => [x, value(x)] as [T, number])
     .sort((a, b) => a[1] - b[1])
     .map(([x]) => x);
 
 export const uniqueBy = <T, S>(value: (x: T) => S, xs: T[]): T[] => {
   const seen = new Set<S>();
   const res: T[] = [];
-  xs.forEach((x) => {
+  xs.forEach(x => {
     const prop = value(x);
     if (!seen.has(prop)) {
       res.push(x);
@@ -59,10 +59,10 @@ export const uniqueBy = <T, S>(value: (x: T) => S, xs: T[]): T[] => {
 };
 
 export const hasAll = <T>(set: Set<T>, values: T[]) =>
-  values.every((v) => set.has(v));
+  values.every(v => set.has(v));
 
 export const takeWhile = <T>(pred: (x: T) => boolean, xs: T[]): T[] => {
-  const i = xs.findIndex((x) => !pred(x));
+  const i = xs.findIndex(x => !pred(x));
   if (i === -1) {
     return xs;
   }

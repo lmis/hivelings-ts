@@ -36,7 +36,7 @@ export const makeRandomScenario = (): SimulationState => {
     const midpoint = randomPosition();
     if (
       state.entities.every(
-        (e) => distance(e.midpoint, midpoint) >= 2 * hivelingRadius
+        e => distance(e.midpoint, midpoint) >= 2 * hivelingRadius
       )
     ) {
       insert(state, {
@@ -82,7 +82,7 @@ export const makeRandomScenario = (): SimulationState => {
     const midpoint = randomPosition();
     if (
       state.entities.every(
-        (e) => distance(e.midpoint, midpoint) >= e.radius + obstacleRadius
+        e => distance(e.midpoint, midpoint) >= e.radius + obstacleRadius
       )
     ) {
       insert(state, {
@@ -97,7 +97,7 @@ export const makeRandomScenario = (): SimulationState => {
 
   const topAndBottom = crossProduct(range(-16, 16), [-16, 16]) as Position[];
   const sides = crossProduct([-16, 16], range(-16, 17)) as Position[];
-  [...topAndBottom, ...sides].forEach((midpoint) =>
+  [...topAndBottom, ...sides].forEach(midpoint =>
     insert(state, {
       midpoint,
       radius: obstacleRadius,

@@ -37,7 +37,7 @@ export const makeLaggedFibo = (config: Config) => (
   const initialState = {
     sequence: [...seed.toString(), ...defaultSeed]
       .slice(0, k)
-      .map((c) => c.charCodeAt(0)),
+      .map(c => c.charCodeAt(0)),
     config
   };
 

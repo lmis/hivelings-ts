@@ -31,8 +31,8 @@ const nextZIndex = (
   max(
     0,
     ...entities
-      .filter((e) => distance(e.midpoint, target) < e.radius + targetRadius)
-      .map((e) => e.zIndex + 1)
+      .filter(e => distance(e.midpoint, target) < e.radius + targetRadius)
+      .map(e => e.zIndex + 1)
   );
 
 export const insert = (state: SimulationState, e: EntityInsert): void => {
@@ -44,8 +44,8 @@ export const insert = (state: SimulationState, e: EntityInsert): void => {
 
 export const fadeTrails = (s: SimulationState): void => {
   s.entities = s.entities
-    .map((e) => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
-    .filter((e) => !(e.type === TRAIL && --e.lifetime < 0));
+    .map(e => (e.type === TRAIL ? { ...e, lifetime: e.lifetime - 1 } : e))
+    .filter(e => !(e.type === TRAIL && --e.lifetime < 0));
 };
 
 export const applyOutput = (
@@ -106,7 +106,7 @@ export const applyOutput = (
     } else {
       currentHiveling.carriedEntity = target;
       state.entities = state.entities.filter(
-        (e) => e.identifier !== target.identifier
+        e => e.identifier !== target.identifier
       );
     }
   }
@@ -116,7 +116,7 @@ export const applyOutput = (
       state.score -= 2;
     } else if (
       carriedEntity?.type === FOOD &&
-      interactableEntities.some((e) => e.type === HIVE_ENTRANCE)
+      interactableEntities.some(e => e.type === HIVE_ENTRANCE)
     ) {
       state.score += 15;
     } else {
@@ -145,17 +145,17 @@ const toHivelingSpace = ({ midpoint, orientation }: Hiveling, e: Entity) => ({
 export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
   const { identifier, midpoint, orientation, memory, carriedEntity } = hiveling;
   const otherEntities = entities
-    .filter((e) => e.identifier !== identifier)
-    .map((e) => ({ ...e, dist: distance(midpoint, e.midpoint) }));
+    .filter(e => e.identifier !== identifier)
+    .map(e => ({ ...e, dist: distance(midpoint, e.midpoint) }));
   const sliverWidth = fieldOfView / 50;
   const slivers = rangeSteps(
     -fieldOfView / 2,
     sliverWidth,
     fieldOfView / 2
-  ).map((sliverStart) => {
+  ).map(sliverStart => {
     const entitiesInSliver = sortBy(
-      (e) => e.dist,
-      otherEntities.filter((e) => {
+      e => e.dist,
+      otherEntities.filter(e => {
         const position = e.midpoint;
         if (e.dist <= e.radius) {
           return true;
@@ -178,14 +178,14 @@ export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
         );
       })
     );
-    const occluderIndex = entitiesInSliver.findIndex((e) =>
+    const occluderIndex = entitiesInSliver.findIndex(e =>
       [OBSTACLE, HIVELING].includes(e.type)
     );
     return {
       visibleEntityIds: (occluderIndex === -1
         ? entitiesInSliver
         : entitiesInSliver.slice(0, occluderIndex + 1)
-      ).map((e) => e.identifier),
+      ).map(e => e.identifier),
       dist: min(
         entitiesInSliver[occluderIndex]?.dist ?? Infinity,
         sightDistance
@@ -195,14 +195,14 @@ export const makeInput = (entities: Entity[], hiveling: Hiveling): Input => {
     };
   });
   const visibleEntityIds = new Set<number>();
-  slivers.forEach((s) =>
-    s.visibleEntityIds.forEach((i) => visibleEntityIds.add(i))
+  slivers.forEach(s =>
+    s.visibleEntityIds.forEach(i => visibleEntityIds.add(i))
   );
   const visibleEntities = otherEntities
-    .filter((e) => visibleEntityIds.has(e.identifier))
-    .map((e) => toHivelingSpace(hiveling, e));
+    .filter(e => visibleEntityIds.has(e.identifier))
+    .map(e => toHivelingSpace(hiveling, e));
 
-  const otherEntitiesInHivelingReference = otherEntities.map((e) =>
+  const otherEntitiesInHivelingReference = otherEntities.map(e =>
     toHivelingSpace(hiveling, e)
   );
   const interactableEntities = otherEntitiesInHivelingReference.filter(

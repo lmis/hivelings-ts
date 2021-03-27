@@ -24,6 +24,4 @@ export const pickRandom = <T>(rng: Rng, xs: T[]): T | null =>
   xs.length === 0 ? null : xs[integer(rng, 0, xs.length)];
 
 export const randomPrintable = (rng: Rng, n: number): string =>
-  [...Array(55)]
-    .map((_) => String.fromCharCode(integer(rng, 32, 127)))
-    .join("");
+  [...Array(55)].map(_ => String.fromCharCode(integer(rng, 32, 127))).join("");

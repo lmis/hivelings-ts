@@ -46,14 +46,14 @@ export const makeBaseScenario = (): SimulationState => {
       orientation
     })
   );
-  hivePositions.forEach((midpoint) =>
+  hivePositions.forEach(midpoint =>
     insert(state, {
       midpoint,
       radius: 0.5,
       type: HIVE_ENTRANCE
     })
   );
-  [...topAndBottom, ...sides].forEach((midpoint) =>
+  [...topAndBottom, ...sides].forEach(midpoint =>
     insert(state, {
       midpoint,
       radius: 0.5,
@@ -61,7 +61,7 @@ export const makeBaseScenario = (): SimulationState => {
       style: integer(rng, 0, 10) > 7 ? "treeStump" : "rocks"
     })
   );
-  foodPositions.forEach((midpoint) =>
+  foodPositions.forEach(midpoint =>
     insert(state, {
       midpoint,
       radius: 0.5,

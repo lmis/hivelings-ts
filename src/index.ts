@@ -51,9 +51,9 @@ const prettyPrintEntity = (e: Entity, subItem: boolean = false): string[] => {
   if (e.type === HIVELING && e.show) res.push(` show: ${e.show}`);
   if (e.type === HIVELING && e.carriedEntity) {
     res.push(` carriedEntity: ${e.carriedEntity.type}`);
-    prettyPrintEntity(e.carriedEntity, true).forEach((x) => res.push(x));
+    prettyPrintEntity(e.carriedEntity, true).forEach(x => res.push(x));
   }
-  return res.map((r) => (subItem ? "  " + r : r));
+  return res.map(r => (subItem ? "  " + r : r));
 };
 
 export interface GameState {
@@ -66,6 +66,7 @@ export interface GameState {
   sidebarEntityId: number | null;
   showVision: boolean;
   showInteractions: boolean;
+  showHelp: boolean;
   quitting: boolean;
   sending: boolean;
   framesSinceLastAdvance: number;
@@ -107,10 +108,10 @@ const handleKeyPresses = (
     state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
   if (held.has("ArrowRight"))
     state.cameraPosition[0] = clamp(state.cameraPosition[0] + 0.2, hBounds);
-  if (held.has("1")) state.speed = 1;
-  if (held.has("2")) state.speed = 2;
-  if (held.has("3")) state.speed = 3;
-  if (held.has("4")) state.speed = 4;
+  if (released.has("1")) state.speed = 1;
+  if (released.has("2")) state.speed = 2;
+  if (released.has("3")) state.speed = 3;
+  if (released.has("4")) state.speed = 4;
   if (
     released.has("Backspace") &&
     !state.sending &&
@@ -124,6 +125,7 @@ const handleKeyPresses = (
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
   if (released.has("i")) state.showInteractions = !state.showInteractions;
+  if (held.size > 0 || released.size > 0) state.showHelp = false;
 };
 
 const shouldAdvance = (
@@ -169,7 +171,7 @@ const main = async () => {
   const socket = url ? new WebSocket(decodeURIComponent(url)) : null;
   const send = async (message: string) =>
     socket
-      ? new Promise<string>((resolve) => {
+      ? new Promise<string>(resolve => {
           socket.onmessage = (event: MessageEvent<string>) => {
             socket.onmessage = () => null;
 
@@ -189,6 +191,7 @@ const main = async () => {
     speed: 0,
     showVision: false,
     showInteractions: false,
+    showHelp: false,
     quitting: false,
     sending: false,
     framesSinceLastAdvance: 0
@@ -245,7 +248,7 @@ const main = async () => {
         state.simulationStateHistory = [
           {
             ...state.simulationState,
-            entities: state.simulationState.entities.map((e) => ({
+            entities: state.simulationState.entities.map(e => ({
               ...e,
               midpoint: [...e.midpoint] as Position
             }))
@@ -307,7 +310,7 @@ const main = async () => {
       (state.showInteractions || state.showVision) &&
       state.cachedInput.size === 0
     ) {
-      state.simulationState.entities.filter(isHiveling).forEach((h) => {
+      state.simulationState.entities.filter(isHiveling).forEach(h => {
         state.cachedInput.set(
           h.identifier,
           makeInput(state.simulationState.entities, h)
@@ -368,18 +371,95 @@ const main = async () => {
       width: 140,
       lineHeight: 20,
       bottomPadding: 9,
+      leftPadding: 4,
       lines: [
         `Score: ${state.simulationState.score}` +
           (debugHiveMind ? " (DEBUG)" : ""),
         `Scenario: ${scenario}`,
         `Round: ${state.simulationState.roundNumber}`,
-        `Url:`,
-        ` ${url ?? "null (Demo)"}`
+        `Hive Mind:`,
+        " " + (url ?? "Demo")
       ],
       zIndex: 900
     });
 
-    entities.forEach((e) => {
+    if (!state.showHelp) {
+      drawTextbox({
+        renderBuffer,
+        top: 0.85 * canvasHeight,
+        left: 0.01 * canvasWidth,
+        width: 68,
+        lineHeight: 60,
+        bottomPadding: 18,
+        leftPadding: 20,
+        lines: ["?"],
+        zIndex: 900
+      });
+      if (mouse.released && mouse.position) {
+        const [x, y] = mouse.position;
+        if (
+          x > 0.01 * canvasWidth &&
+          x < 0.01 * canvasWidth + 68 &&
+          y > 0.85 * canvasHeight &&
+          y < 0.85 * canvasHeight + 18 + 60
+        ) {
+          state.showHelp = true;
+        }
+      }
+    } else {
+      const lines = [
+        "Keybinding:",
+        ` Any key                     Close this menu`,
+        ` Space                       Pause / Unpause`,
+        ` Enter                       Advance one round`,
+        ` Backspace                   Undo last round`,
+        ` Arrow Keys                  Move camera`,
+        ` Shift+Arrow Up or Numpad+   Zoom in`,
+        ` Shift+Arrow Down or Numpad- Zoom out`,
+        ` 1-4                         Set speed`,
+        ` v                           Show vision indicator`,
+        ` i                           Show interaction and move indicator`
+      ];
+      const lineHeight = 18;
+      drawTextbox({
+        renderBuffer,
+        top: 0.01 * canvasHeight,
+        left: 0.01 * canvasWidth,
+        width: 0.98 * canvasWidth,
+        lineHeight,
+        bottomPadding: (1 - 0.02) * canvasHeight - lineHeight * lines.length,
+        leftPadding: 4,
+        lines,
+        zIndex: 1500
+      });
+      const buttonWidth = 68;
+      const buttonLeft = 0.98 * canvasWidth - buttonWidth;
+      const buttonTop = 0.02 * canvasHeight;
+      drawTextbox({
+        renderBuffer,
+        top: buttonTop,
+        left: buttonLeft,
+        width: buttonWidth,
+        lineHeight: 60,
+        bottomPadding: 18,
+        leftPadding: 20,
+        lines: ["X"],
+        zIndex: 1501
+      });
+      if (mouse.released && mouse.position) {
+        const [x, y] = mouse.position;
+        if (
+          x > buttonLeft &&
+          x < buttonLeft + buttonWidth &&
+          y > buttonTop &&
+          y < buttonTop + 18 + 60
+        ) {
+          state.showHelp = false;
+        }
+      }
+    }
+
+    entities.forEach(e => {
       const image = "style" in e ? assets[e.style] : assets[e.type];
       const angle = "orientation" in e ? toRad(e.orientation) : 0;
       const position = transformPositionToPixelSpace(e.midpoint);
@@ -433,7 +513,7 @@ const main = async () => {
             ])
           )
         });
-        (cachedInput?.interactableEntities ?? []).forEach((other) =>
+        (cachedInput?.interactableEntities ?? []).forEach(other =>
           drawCircle({
             renderBuffer,
             position: transformPositionToPixelSpace(
@@ -464,7 +544,7 @@ const main = async () => {
             });
           }
         );
-        (cachedInput?.visibleEntities ?? []).forEach((other) =>
+        (cachedInput?.visibleEntities ?? []).forEach(other =>
           drawCircle({
             renderBuffer,
             position: transformPositionToPixelSpace(
@@ -486,13 +566,13 @@ const main = async () => {
       mouse.position && transformPositionToGameSpace(mouse.position);
 
     if (mousePosition) {
-      const entitiesWithMouseDistance = entities.map((e) => ({
+      const entitiesWithMouseDistance = entities.map(e => ({
         ...e,
         mouseDistance: distance(e.midpoint, mousePosition)
       }));
 
       const highlightedEntity = entitiesWithMouseDistance
-        .filter((e) => e.mouseDistance < e.radius * 1.2)
+        .filter(e => e.mouseDistance < e.radius * 1.2)
         .sort((a, b) =>
           a.mouseDistance <= 0.8 && b.mouseDistance > 0.8
             ? 1
@@ -508,13 +588,13 @@ const main = async () => {
 
         const lines: string[] = [];
         sortBy(
-          (e) => -e.zIndex,
+          e => -e.zIndex,
           entities.filter(
-            (e) =>
+            e =>
               distance(highlightedEntity.midpoint, e.midpoint) <
               highlightedEntity.radius + e.radius - 0.000001
           )
-        ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
+        ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
         const [x, y] = transformPositionToPixelSpace(
           highlightedEntity.midpoint
         );
@@ -552,24 +632,25 @@ const main = async () => {
           lines,
           lineHeight,
           bottomPadding,
+          leftPadding: 4,
           zIndex: 1000
         });
       }
     }
 
     const sidebarEntity = entities.find(
-      (e) => e.identifier === state.sidebarEntityId
+      e => e.identifier === state.sidebarEntityId
     );
     if (sidebarEntity) {
       const lines: string[] = [];
       sortBy(
-        (e) => -e.zIndex,
+        e => -e.zIndex,
         entities.filter(
-          (e) =>
+          e =>
             distance(sidebarEntity.midpoint, e.midpoint) <
             sidebarEntity.radius + e.radius - 0.000001
         )
-      ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
+      ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
       const leftPercentage = 0.78;
       const topPercentage = 0.01;
       const lineHeight = 18;
@@ -582,6 +663,7 @@ const main = async () => {
         lineHeight,
         bottomPadding:
           (1 - topPercentage - 0.01) * canvasHeight - lineHeight * lines.length,
+        leftPadding: 4,
         zIndex: 900
       });
     }

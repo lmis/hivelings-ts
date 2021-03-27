@@ -2,7 +2,7 @@ declare const require: (url: string) => string;
 
 export const loadAsset = async (url: string): Promise<HTMLImageElement> => {
   const img = new Image();
-  const promise = new Promise<HTMLImageElement>((resolve) => {
+  const promise = new Promise<HTMLImageElement>(resolve => {
     img.onload = () => resolve(img);
   });
   img.src = require("../../../public/assets/" + url);
