@@ -17,15 +17,6 @@ export const flush = (
   });
 };
 
-interface DrawImageParams {
-  renderBuffer: RenderBuffer;
-  image: CanvasImageSource;
-  angle: number;
-  position: [number, number];
-  width: number;
-  height: number;
-  zIndex: number;
-}
 export const drawImage = ({
   renderBuffer,
   image,
@@ -34,7 +25,15 @@ export const drawImage = ({
   angle,
   position: [x, y],
   zIndex
-}: DrawImageParams) => {
+}: {
+  renderBuffer: RenderBuffer;
+  image: CanvasImageSource;
+  angle: number;
+  position: [number, number];
+  width: number;
+  height: number;
+  zIndex: number;
+}) => {
   renderBuffer.push({
     action: (ctx) => {
       ctx.save();
@@ -113,26 +112,28 @@ export const drawLine = ({
   });
 };
 
-export const drawRect = ({
+export const drawAxisAlignedRect = ({
   renderBuffer,
+  left,
+  top,
   width,
   height,
   fillStyle,
-  position: [x, y],
   zIndex
 }: {
   renderBuffer: RenderBuffer;
+  left: number;
+  top: number;
   width: number;
   height: number;
   fillStyle: CanvasRenderingContext2D["fillStyle"];
-  position: Position;
   zIndex: number;
 }) => {
   renderBuffer.push({
     action: (ctx) => {
       ctx.save();
       ctx.fillStyle = fillStyle;
-      ctx.fillRect(x - width / 2, y - height / 2, width, height);
+      ctx.fillRect(left, top, width, height);
       ctx.restore();
     },
     zIndex
@@ -178,40 +179,47 @@ export const drawCircle = ({
 
 export const drawTextbox = ({
   renderBuffer,
-  position: [x, y],
+  top,
+  left,
   lines,
+  lineHeight,
+  bottomPadding,
+  width,
   zIndex
 }: {
   renderBuffer: RenderBuffer;
-  position: Position;
+  left: number;
+  top: number;
+  width: number;
+  lineHeight: number;
+  bottomPadding: number;
   lines: string[];
   zIndex: number;
 }) => {
   const borderThickness = 2;
-  const lineheight = 18;
-  const font = `${lineheight}px Georgia`;
-  const yPadding = 10;
-  const yOffset = 25 + 0.5 * lines.length * lineheight;
-  const height = lineheight * lines.length + yPadding;
-  const width =
-    (lineheight / 2) * Math.min(240, Math.max(...lines.map((l) => l.length)));
+  const font = `${lineHeight}px Georgia`;
+  const leftPadding = 4;
+  const rightPadding = 4;
+  const height = lineHeight * lines.length + bottomPadding;
 
   // Border
-  drawRect({
+  drawAxisAlignedRect({
     renderBuffer,
     fillStyle: "white",
     width,
     height,
-    position: [x, y - yOffset],
+    top,
+    left,
     zIndex: zIndex - 0.5
   });
   // Background
-  drawRect({
+  drawAxisAlignedRect({
     renderBuffer,
-    fillStyle: "black",
+    fillStyle: "rgb(102,51,0)",
     width: width - borderThickness,
     height: height - borderThickness,
-    position: [x, y - yOffset],
+    top: top + borderThickness / 2,
+    left: left + borderThickness / 2,
     zIndex: zIndex - 0.3
   });
 
@@ -223,9 +231,9 @@ export const drawTextbox = ({
       lines.forEach((text, i) => {
         ctx.fillText(
           text,
-          x - width / 2 + borderThickness,
-          y - height / 2 - yOffset + (i + 1) * lineheight + borderThickness,
-          width - borderThickness
+          left + borderThickness / 2 + leftPadding,
+          top + (i + 1) * lineHeight + borderThickness / 2,
+          width - borderThickness / 2 - leftPadding - rightPadding
         );
       });
       ctx.restore();

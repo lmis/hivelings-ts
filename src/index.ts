@@ -3,7 +3,7 @@ import { loadAssets } from "canvas/assets";
 import {
   RenderBuffer,
   drawImage,
-  drawRect,
+  drawAxisAlignedRect,
   drawTextbox,
   initializeRenderBuffer,
   flush,
@@ -29,10 +29,8 @@ import {
 import { loadStartingState, ScenarioName } from "hivelings/scenarios";
 import {
   Entity,
-  Hiveling,
   SimulationState,
   isHiveling,
-  Trail,
   Input
 } from "hivelings/types/simulation";
 import { hivelingMind as demoHiveMind } from "hivelings/demoMind";
@@ -41,7 +39,7 @@ import { EntityType, Output } from "hivelings/types/common";
 import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
 
-const { HIVELING, FOOD, OBSTACLE, TRAIL, HIVE_ENTRANCE } = EntityType;
+const { HIVELING, OBSTACLE, TRAIL } = EntityType;
 
 const prettyPrintEntity = (e: Entity, subItem: boolean = false): string[] => {
   const commonProps: (keyof Entity)[] = ["identifier", "zIndex", "radius"];
@@ -85,14 +83,17 @@ const drawBackground = (
   renderBuffer: RenderBuffer,
   background: any,
   scale: number,
-  position: Position
+  [x, y]: Position
 ) => {
-  drawRect({
+  const height = background.height * scale;
+  const width = background.width * scale;
+  drawAxisAlignedRect({
     renderBuffer,
-    width: background.width * scale,
-    height: background.height * scale,
     fillStyle: "rgb(30,60,15)",
-    position,
+    top: y - height / 2,
+    left: x - width / 2,
+    height,
+    width,
     zIndex: -10
   });
 };
@@ -369,10 +370,15 @@ const main = async () => {
 
     drawTextbox({
       renderBuffer,
-      position: [canvasWidth / 2, (9 * canvasHeight) / 100],
+      top: 0.01 * canvasHeight,
+      left: 0.01 * canvasWidth,
+      width: 140,
+      lineHeight: 20,
+      bottomPadding: 9,
       lines: [
-        ` Score: ${state.simulationState.score}` +
-          (debugHiveMind ? " (DEBUG)" : "")
+        `Score: ${state.simulationState.score}` +
+          (debugHiveMind ? " (DEBUG)" : ""),
+        `Scenario: ${scenario}`
       ],
       zIndex: 900
     });
@@ -484,33 +490,75 @@ const main = async () => {
       mouse.position && transformPositionToGameSpace(mouse.position);
 
     if (mousePosition) {
-      const underCursor = entities.filter(
-        (e) => distance(e.midpoint, mousePosition) < e.radius
-      );
+      const entitiesWithMouseDistance = entities.map((e) => ({
+        ...e,
+        mouseDistance: distance(e.midpoint, mousePosition)
+      }));
 
-      if (mouse.clicking) {
-        state.sidebarEntityId =
-          maxBy((e) => -e.zIndex, underCursor)?.identifier ?? null;
-      }
+      const highlightedEntity = entitiesWithMouseDistance
+        .filter((e) => e.mouseDistance < e.radius * 1.2)
+        .sort((a, b) =>
+          a.mouseDistance <= 0.8 && b.mouseDistance > 0.8
+            ? 1
+            : b.mouseDistance <= 0.8 && a.mouseDistance > 0.8
+            ? -1
+            : b.zIndex - a.zIndex
+        )[0];
 
-      const highlightedEntities = uniqueBy((e) => e.identifier, underCursor);
+      if (highlightedEntity) {
+        if (mouse.clicking) {
+          state.sidebarEntityId = highlightedEntity?.identifier ?? null;
+        }
 
-      highlightedEntities.forEach((h, i) => {
         const lines: string[] = [];
         sortBy(
           (e) => -e.zIndex,
           entities.filter(
             (e) =>
-              distance(h.midpoint, e.midpoint) < h.radius + e.radius - 0.000001
+              distance(highlightedEntity.midpoint, e.midpoint) <
+              highlightedEntity.radius + e.radius - 0.000001
           )
         ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
+        const [x, y] = transformPositionToPixelSpace(
+          highlightedEntity.midpoint
+        );
+        const lineHeight = 18;
+        const bottomPadding = 8;
+        const height = lineHeight * lines.length + bottomPadding;
+        const width = 180;
+        const yType =
+          y + height > canvasHeight ? "top" : y - height < 0 ? "bottom" : "mid";
+        const xType =
+          x + width / 2 >
+          (state.sidebarEntityId !== null ? 0.78 * canvasWidth : canvasWidth)
+            ? "right"
+            : x - width / 2 < 0
+            ? "left"
+            : "mid";
+
+        const top =
+          (xType === "mid" && yType === "mid") || yType === "bottom"
+            ? y + 0.8 * scale
+            : yType === "top"
+            ? y - height - 0.8 * scale
+            : y - height / 2;
+        const left =
+          xType === "mid"
+            ? x - width / 2
+            : xType === "left"
+            ? x + 0.8 * scale
+            : x - width - 0.8 * scale;
         drawTextbox({
           renderBuffer,
-          position: transformPositionToPixelSpace(h.midpoint),
+          left,
+          top,
+          width,
           lines,
-          zIndex: 1000 + i
+          lineHeight,
+          bottomPadding,
+          zIndex: 1000
         });
-      });
+      }
     }
 
     const sidebarEntity = entities.find(
@@ -526,10 +574,18 @@ const main = async () => {
             sidebarEntity.radius + e.radius - 0.000001
         )
       ).forEach((e) => prettyPrintEntity(e).forEach((l) => lines.push(l)));
+      const leftPercentage = 0.78;
+      const topPercentage = 0.01;
+      const lineHeight = 18;
       drawTextbox({
         renderBuffer,
-        position: [(88 * canvasWidth) / 100, lines.length * 24],
+        top: topPercentage * canvasHeight,
+        left: leftPercentage * canvasWidth,
+        width: (1 - leftPercentage - 0.01) * canvasWidth,
         lines,
+        lineHeight,
+        bottomPadding:
+          (1 - topPercentage - 0.01) * canvasHeight - lineHeight * lines.length,
         zIndex: 900
       });
     }
