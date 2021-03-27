@@ -10,15 +10,7 @@ import {
   drawCircle,
   drawWedge
 } from "canvas/draw";
-import {
-  Position,
-  sortBy,
-  clamp,
-  hasAll,
-  distance,
-  uniqueBy,
-  maxBy
-} from "utils";
+import { Position, sortBy, clamp, hasAll, distance } from "utils";
 import { hBounds, vBounds } from "config";
 import {
   applyOutput,
@@ -302,6 +294,7 @@ const main = async () => {
         fadeTrails(state.simulationState);
         state.cachedInput.clear();
         state.simulationState.rngState = rng.getState();
+        state.simulationState.roundNumber++;
         state.sending = false;
       })();
 
@@ -378,7 +371,10 @@ const main = async () => {
       lines: [
         `Score: ${state.simulationState.score}` +
           (debugHiveMind ? " (DEBUG)" : ""),
-        `Scenario: ${scenario}`
+        `Scenario: ${scenario}`,
+        `Round: ${state.simulationState.roundNumber}`,
+        `Url:`,
+        ` ${url ?? "null (Demo)"}`
       ],
       zIndex: 900
     });

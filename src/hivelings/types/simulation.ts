@@ -64,6 +64,7 @@ export interface SimulationState {
   entities: Entity[];
   nextId: number;
   score: number;
+  roundNumber: number;
   rngState: RngState;
 }
 

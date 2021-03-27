@@ -31,7 +31,8 @@ export const makeBaseScenario = (): SimulationState => {
   const state: SimulationState = {
     entities: [],
     nextId: 0,
-    score: 100,
+    roundNumber: 0,
+    score: 0,
     rngState: rng.getState()
   };
   hivelingSpec.forEach(([color, midpoint, orientation], i) =>
@@ -41,7 +42,7 @@ export const makeBaseScenario = (): SimulationState => {
       radius: 0.5,
       type: HIVELING,
       memory: null,
-      hasFood: false,
+      carriedEntity: null,
       orientation
     })
   );

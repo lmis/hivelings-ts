@@ -27,6 +27,7 @@ export const makeRandomScenario = (): SimulationState => {
   const state: SimulationState = {
     score: 0,
     nextId: 0,
+    roundNumber: 0,
     entities: [],
     rngState: rng.getState()
   };
