@@ -580,12 +580,17 @@ const main = async () => {
             ? -1
             : b.zIndex - a.zIndex
         )[0];
-
-      if (highlightedEntity) {
-        if (mouse.clicking) {
-          state.sidebarEntityId = highlightedEntity?.identifier ?? null;
+      if (mouse.released) {
+        if (
+          !highlightedEntity ||
+          highlightedEntity.identifier === state.sidebarEntityId
+        ) {
+          state.sidebarEntityId = null;
+        } else {
+          state.sidebarEntityId = highlightedEntity.identifier;
         }
-
+      }
+      if (highlightedEntity) {
         const lines: string[] = [];
         sortBy(
           e => -e.zIndex,
