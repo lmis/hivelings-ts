@@ -4,7 +4,7 @@ Hivelings is a game that you play by programming - in any language you choose! C
 # How to Play
 To play the game you must implement a server that can understand and respond via websockets. In each iteration the server will receive one message per Hiveling. The following type definitions should help you understand the shape of input and expected output. Each message sent to your server will contain a string content with a JSON adhering to the `Input` type below. In turn, the game will await a response containing a JSON string adhereing to the `Output` type below.
 
-```
+```typescript
 export type Position = [number, number];
 export enum EntityType {
   HIVELING = "HIVELING",
