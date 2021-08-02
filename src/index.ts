@@ -364,14 +364,75 @@ const main = async () => {
       transformPositionToPixelSpace([0, 0])
     );
 
-    drawTextbox({
-      renderBuffer,
+    const infoBoxDimensions = {
       top: 0.01 * canvasHeight,
       left: 0.01 * canvasWidth,
       width: 140,
       lineHeight: 20,
       bottomPadding: 9,
       leftPadding: 4,
+      zIndex: 900
+    };
+
+    const helpButtonDimensions = {
+      top: 0.85 * canvasHeight,
+      left: 0.01 * canvasWidth,
+      width: 68,
+      height: 78,
+      lineHeight: 60,
+      bottomPadding: 18,
+      leftPadding: 20,
+      zIndex: 900
+    };
+
+    const helpScreenLines = [
+      "Keybinding:",
+      ` Any key                     Close this menu`,
+      ` Space                       Pause / Unpause`,
+      ` Enter                       Advance one round`,
+      ` Backspace                   Undo last round`,
+      ` Arrow Keys                  Move camera`,
+      ` Shift+Arrow Up or Numpad+   Zoom in`,
+      ` Shift+Arrow Down or Numpad- Zoom out`,
+      ` 1-4                         Set speed`,
+      ` v                           Show vision indicator`,
+      ` i                           Show interaction and move indicator`
+    ];
+    const helpScreenProps = {
+      top: 0.01 * canvasHeight,
+      left: 0.01 * canvasWidth,
+      width: 0.98 * canvasWidth,
+      lineHeight: 18,
+      bottomPadding: (1 - 0.02) * canvasHeight - 18 * helpScreenLines.length,
+      leftPadding: 4,
+      lines: helpScreenLines,
+      zIndex: 1500
+    };
+
+    const helpScreenCancelButtonProps = {
+      top: 0.02 * canvasHeight,
+      left: 0.98 * canvasWidth - 68,
+      width: 68,
+      height: 78, // lineHeight + padding
+      lineHeight: 60,
+      bottomPadding: 18,
+      leftPadding: 20,
+      lines: ["X"],
+      zIndex: 1501
+    };
+
+    const sideBarProps = {
+      top: 0.01 * canvasHeight,
+      left: 0.78 * canvasWidth,
+      height: 0.98 * canvasHeight,
+      width: (1 - 0.78 - 0.01) * canvasWidth,
+      lineHeight: 18,
+      leftPadding: 4,
+      zIndex: 900
+    };
+    drawTextbox({
+      renderBuffer,
+      ...infoBoxDimensions,
       lines: [
         `Score: ${state.simulationState.score}` +
           (debugHiveMind ? " (DEBUG)" : ""),
@@ -379,80 +440,45 @@ const main = async () => {
         `Round: ${state.simulationState.roundNumber}`,
         `Hive Mind:`,
         " " + (url ?? "Demo")
-      ],
-      zIndex: 900
+      ]
     });
 
     if (!state.showHelp) {
       drawTextbox({
         renderBuffer,
-        top: 0.85 * canvasHeight,
-        left: 0.01 * canvasWidth,
-        width: 68,
-        lineHeight: 60,
-        bottomPadding: 18,
-        leftPadding: 20,
-        lines: ["?"],
-        zIndex: 900
+        ...helpButtonDimensions,
+        lines: ["?"]
       });
       if (mouse.released && mouse.position) {
         const [x, y] = mouse.position;
         if (
-          x > 0.01 * canvasWidth &&
-          x < 0.01 * canvasWidth + 68 &&
-          y > 0.85 * canvasHeight &&
-          y < 0.85 * canvasHeight + 18 + 60
+          x > helpButtonDimensions.left &&
+          x < helpButtonDimensions.left + helpButtonDimensions.width &&
+          y > helpButtonDimensions.top &&
+          y < helpButtonDimensions.top + helpButtonDimensions.height
         ) {
           state.showHelp = true;
         }
       }
     } else {
-      const lines = [
-        "Keybinding:",
-        ` Any key                     Close this menu`,
-        ` Space                       Pause / Unpause`,
-        ` Enter                       Advance one round`,
-        ` Backspace                   Undo last round`,
-        ` Arrow Keys                  Move camera`,
-        ` Shift+Arrow Up or Numpad+   Zoom in`,
-        ` Shift+Arrow Down or Numpad- Zoom out`,
-        ` 1-4                         Set speed`,
-        ` v                           Show vision indicator`,
-        ` i                           Show interaction and move indicator`
-      ];
-      const lineHeight = 18;
       drawTextbox({
         renderBuffer,
-        top: 0.01 * canvasHeight,
-        left: 0.01 * canvasWidth,
-        width: 0.98 * canvasWidth,
-        lineHeight,
-        bottomPadding: (1 - 0.02) * canvasHeight - lineHeight * lines.length,
-        leftPadding: 4,
-        lines,
-        zIndex: 1500
+        ...helpScreenProps
       });
-      const buttonWidth = 68;
-      const buttonLeft = 0.98 * canvasWidth - buttonWidth;
-      const buttonTop = 0.02 * canvasHeight;
       drawTextbox({
         renderBuffer,
-        top: buttonTop,
-        left: buttonLeft,
-        width: buttonWidth,
-        lineHeight: 60,
-        bottomPadding: 18,
-        leftPadding: 20,
-        lines: ["X"],
-        zIndex: 1501
+        ...helpScreenCancelButtonProps
       });
       if (mouse.released && mouse.position) {
         const [x, y] = mouse.position;
         if (
-          x > buttonLeft &&
-          x < buttonLeft + buttonWidth &&
-          y > buttonTop &&
-          y < buttonTop + 18 + 60
+          x > helpScreenCancelButtonProps.left &&
+          x <
+            helpScreenCancelButtonProps.left +
+              helpScreenCancelButtonProps.width &&
+          y > helpScreenCancelButtonProps.top &&
+          y <
+            helpScreenCancelButtonProps.top + helpScreenCancelButtonProps.height
         ) {
           state.showHelp = false;
         }
@@ -562,84 +588,97 @@ const main = async () => {
       }
     });
 
-    const mousePosition =
-      mouse.position && transformPositionToGameSpace(mouse.position);
+    if (mouse.position) {
+      const [x, y] = mouse.position;
 
-    if (mousePosition) {
-      const entitiesWithMouseDistance = entities.map(e => ({
-        ...e,
-        mouseDistance: distance(e.midpoint, mousePosition)
-      }));
+      const mouseInSideBar =
+        state.sidebarEntityId !== null &&
+        x > sideBarProps.left &&
+        x < sideBarProps.left + sideBarProps.width &&
+        y > sideBarProps.top &&
+        y < sideBarProps.top + sideBarProps.height;
 
-      const highlightedEntity = entitiesWithMouseDistance
-        .filter(e => e.mouseDistance < e.radius * 1.2)
-        .sort((a, b) =>
-          a.mouseDistance <= 0.8 && b.mouseDistance > 0.8
-            ? 1
-            : b.mouseDistance <= 0.8 && a.mouseDistance > 0.8
-            ? -1
-            : b.zIndex - a.zIndex
-        )[0];
-      if (mouse.released) {
-        if (
-          !highlightedEntity ||
-          highlightedEntity.identifier === state.sidebarEntityId
-        ) {
-          state.sidebarEntityId = null;
-        } else {
-          state.sidebarEntityId = highlightedEntity.identifier;
+      if (!mouseInSideBar) {
+        const mousePosition = transformPositionToGameSpace(mouse.position);
+        const entitiesWithMouseDistance = entities.map(e => ({
+          ...e,
+          mouseDistance: distance(e.midpoint, mousePosition)
+        }));
+
+        const highlightedEntity = entitiesWithMouseDistance
+          .filter(e => e.mouseDistance < e.radius * 1.2)
+          .sort((a, b) =>
+            a.mouseDistance <= 0.8 && b.mouseDistance > 0.8
+              ? 1
+              : b.mouseDistance <= 0.8 && a.mouseDistance > 0.8
+              ? -1
+              : b.zIndex - a.zIndex
+          )[0];
+        if (mouse.released) {
+          if (
+            !highlightedEntity ||
+            highlightedEntity.identifier === state.sidebarEntityId
+          ) {
+            state.sidebarEntityId = null;
+          } else {
+            state.sidebarEntityId = highlightedEntity.identifier;
+          }
         }
-      }
-      if (highlightedEntity) {
-        const lines: string[] = [];
-        sortBy(
-          e => -e.zIndex,
-          entities.filter(
-            e =>
-              distance(highlightedEntity.midpoint, e.midpoint) <
-              highlightedEntity.radius + e.radius - 0.000001
-          )
-        ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
-        const [x, y] = transformPositionToPixelSpace(
-          highlightedEntity.midpoint
-        );
-        const lineHeight = 18;
-        const bottomPadding = 8;
-        const height = lineHeight * lines.length + bottomPadding;
-        const width = 180;
-        const yType =
-          y + height > canvasHeight ? "top" : y - height < 0 ? "bottom" : "mid";
-        const xType =
-          x + width / 2 >
-          (state.sidebarEntityId !== null ? 0.78 * canvasWidth : canvasWidth)
-            ? "right"
-            : x - width / 2 < 0
-            ? "left"
-            : "mid";
+        if (highlightedEntity) {
+          const lines: string[] = [];
+          sortBy(
+            e => -e.zIndex,
+            entities.filter(
+              e =>
+                distance(highlightedEntity.midpoint, e.midpoint) <
+                highlightedEntity.radius + e.radius - 0.000001
+            )
+          ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
+          const [x, y] = transformPositionToPixelSpace(
+            highlightedEntity.midpoint
+          );
+          const lineHeight = 18;
+          const bottomPadding = 8;
+          const height = lineHeight * lines.length + bottomPadding;
+          const width = 180;
+          const yType =
+            y + height > canvasHeight
+              ? "top"
+              : y - height < 0
+              ? "bottom"
+              : "mid";
+          const xType =
+            x + width / 2 >
+            (state.sidebarEntityId !== null ? sideBarProps.left : canvasWidth)
+              ? "right"
+              : x - width / 2 < 0
+              ? "left"
+              : "mid";
 
-        const top =
-          (xType === "mid" && yType === "mid") || yType === "bottom"
-            ? y + 0.8 * scale
-            : yType === "top"
-            ? y - height - 0.8 * scale
-            : y - height / 2;
-        const left =
-          xType === "mid"
-            ? x - width / 2
-            : xType === "left"
-            ? x + 0.8 * scale
-            : x - width - 0.8 * scale;
-        drawTextbox({
-          renderBuffer,
-          left,
-          top,
-          width,
-          lines,
-          lineHeight,
-          bottomPadding,
-          leftPadding: 4,
-          zIndex: 1000
-        });
+          const top =
+            (xType === "mid" && yType === "mid") || yType === "bottom"
+              ? y + 0.8 * scale
+              : yType === "top"
+              ? y - height - 0.8 * scale
+              : y - height / 2;
+          const left =
+            xType === "mid"
+              ? x - width / 2
+              : xType === "left"
+              ? x + 0.8 * scale
+              : x - width - 0.8 * scale;
+          drawTextbox({
+            renderBuffer,
+            left,
+            top,
+            width,
+            lines,
+            lineHeight,
+            bottomPadding,
+            leftPadding: 4,
+            zIndex: 1000
+          });
+        }
       }
     }
 
@@ -656,20 +695,12 @@ const main = async () => {
             sidebarEntity.radius + e.radius - 0.000001
         )
       ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
-      const leftPercentage = 0.78;
-      const topPercentage = 0.01;
-      const lineHeight = 18;
       drawTextbox({
         renderBuffer,
-        top: topPercentage * canvasHeight,
-        left: leftPercentage * canvasWidth,
-        width: (1 - leftPercentage - 0.01) * canvasWidth,
         lines,
-        lineHeight,
         bottomPadding:
-          (1 - topPercentage - 0.01) * canvasHeight - lineHeight * lines.length,
-        leftPadding: 4,
-        zIndex: 900
+          sideBarProps.height - sideBarProps.lineHeight * lines.length,
+        ...sideBarProps
       });
     }
 
