@@ -1,7 +1,4 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
-declare class ClipboardItem {
-  constructor(data: { [mimeType: string]: Blob });
-}
 import { loadAssets } from "canvas/assets";
 import {
   RenderBuffer,
@@ -33,6 +30,9 @@ import { fromHivelingFrameOfReference, toRad } from "hivelings/transformations";
 import { EntityType, Output } from "hivelings/types/common";
 import { randomPrintable, shuffle } from "rng/utils";
 import { loadLaggedFibo } from "rng/laggedFibo";
+declare class ClipboardItem {
+  constructor(data: { [mimeType: string]: Blob });
+}
 
 const { HIVELING, OBSTACLE, TRAIL } = EntityType;
 
@@ -128,7 +128,9 @@ const handleKeyPresses = (
   if (released.has(" ")) state.speed = state.speed === 0 ? 1 : -state.speed;
   if (released.has("v")) state.showVision = !state.showVision;
   if (released.has("i")) state.showInteractions = !state.showInteractions;
-  if (held.size > 0 || released.size > 0) state.showHelp = false;
+
+  if (released.has("h")) state.showHelp = !state.showHelp;
+  if (!held.has("h") && held.size > 0) state.showHelp = false;
 };
 
 const shouldAdvance = (
@@ -320,6 +322,14 @@ const main = async () => {
         );
       });
     }
+
+    const remainingFood = [
+      ...state.simulationState.entities,
+      ...state.simulationState.entities
+        .filter(isHiveling)
+        .map(e => e.carriedEntity)
+    ].filter(e => e?.type === EntityType.FOOD).length;
+
     const {
       scale,
       cameraPosition,
@@ -377,6 +387,29 @@ const main = async () => {
       zIndex: 900
     };
 
+    let gameOverLines =
+      state.simulationState.score >= 0
+        ? [
+            "You win!",
+            ` Final Score: ${state.simulationState.score}`,
+            ` Rounds: ${state.simulationState.roundNumber}`
+          ]
+        : [
+            "You lose!",
+            ` Your score was too low: ${state.simulationState.score}`,
+            ` Rounds: ${state.simulationState.roundNumber}`
+          ];
+    const gameOverScreenProps = {
+      top: 0.01 * canvasHeight,
+      left: 0.3 * canvasWidth,
+      width: 300,
+      lineHeight: 30,
+      bottomPadding: 9,
+      leftPadding: 4,
+      lines: gameOverLines,
+      zIndex: 1000
+    };
+
     const helpButtonDimensions = {
       top: 0.87 * canvasHeight,
       left: 0.01 * canvasWidth,
@@ -388,6 +421,24 @@ const main = async () => {
       zIndex: 900
     };
 
+    const rules = [
+      " In each iteration, this game will send one message per Hiveling to your server.",
+      " The message contains the world as experienced by the Hiveling.",
+      " Your server must respond with an appropriate action.",
+      " For a full description of the rules and data types involved, see: github.com/lmis/hivelings-ts"
+    ];
+    const howToPlay = url
+      ? [
+          ` This game is connected to your websockets server at ${url}`,
+          ...rules
+        ]
+      : [
+          " You are currently in demo mode. You can only watch as the Hivelings do their thing.",
+          ` To play the game, call this url (${window.location}) with the 'hive-mind' query-param pointing to your websockets server.`,
+          ` Example: ${window.location}?hive-mind=wss%3A%2F%2Flocalhost:8080%2F`,
+          "",
+          ...rules
+        ];
     const helpScreenLines = [
       "Keybinding:",
       ` Any key                     Close this menu`,
@@ -399,8 +450,16 @@ const main = async () => {
       ` Shift+Arrow Down or Numpad- Zoom out`,
       ` 1-4                         Set speed`,
       ` v                           Show vision indicator`,
-      ` i                           Show interaction and move indicator`
+      ` i                           Show interaction and move indicator`,
+      ` h                           Toggle this screen`,
+      "",
+      "Scenario Goal:",
+      ` Bring all Strawberries to the hive. ${remainingFood} remaining.`,
+      "",
+      "How to Play:",
+      ...howToPlay
     ];
+
     const helpScreenProps = {
       top: 0.01 * canvasHeight,
       left: 0.01 * canvasWidth,
@@ -453,6 +512,7 @@ const main = async () => {
           (debugHiveMind ? " (DEBUG)" : ""),
         `Scenario: ${scenario}`,
         `Round: ${state.simulationState.roundNumber}`,
+        `Remaining Food: ${remainingFood}`,
         `Hive Mind:`,
         " " + (url ?? "Demo")
       ]
@@ -749,6 +809,10 @@ const main = async () => {
       }
     }
 
+    if (remainingFood === 0 && state.simulationState.score < 0) {
+      drawTextbox({ renderBuffer, ...gameOverScreenProps });
+      state.speed = 0;
+    }
     flush(ctx, renderBuffer);
     releasedKeys.clear();
     mouse.released = false;
