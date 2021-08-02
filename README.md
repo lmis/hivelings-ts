@@ -81,3 +81,7 @@ export interface Output<T> {
 ```
 
 A simple example of a valid response would be `'{"decision":{"type":"TURN","degrees":90},"memory":""}'` where the type parameter `T` for the `memory` field is `String`.
+
+# Example Servers
+The following collects example websockets server to help you get started
+- Node.js/typescript: https://github.com/lmis/hivelings-node-ts
