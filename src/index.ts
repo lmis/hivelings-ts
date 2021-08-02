@@ -380,7 +380,7 @@ const main = async () => {
     const infoBoxDimensions = {
       top: 0.01 * canvasHeight,
       left: 0.01 * canvasWidth,
-      width: 140,
+      width: 180,
       lineHeight: 20,
       bottomPadding: 9,
       leftPadding: 4,
