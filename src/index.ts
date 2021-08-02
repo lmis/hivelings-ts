@@ -809,7 +809,7 @@ const main = async () => {
       }
     }
 
-    if (remainingFood === 0 && state.simulationState.score < 0) {
+    if (remainingFood === 0 || state.simulationState.score < 0) {
       drawTextbox({ renderBuffer, ...gameOverScreenProps });
       state.speed = 0;
     }
