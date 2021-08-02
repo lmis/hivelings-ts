@@ -85,3 +85,7 @@ A simple example of a valid response would be `'{"decision":{"type":"TURN","degr
 # Example Servers
 The following collects example websockets server to help you get started
 - Node.js/typescript: https://github.com/lmis/hivelings-node-ts
+
+# Support for Languages that don't Support Websockets
+If your favorite language does not support websockets or you simply don't feel like going through the hassle of setting it up
+TODO
