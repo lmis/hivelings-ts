@@ -1,4 +1,7 @@
 /* eslint-disable no-undef, @typescript-eslint/no-unused-vars */
+declare class ClipboardItem {
+  constructor(data: { [mimeType: string]: Blob });
+}
 import { loadAssets } from "canvas/assets";
 import {
   RenderBuffer,
@@ -375,7 +378,7 @@ const main = async () => {
     };
 
     const helpButtonDimensions = {
-      top: 0.85 * canvasHeight,
+      top: 0.87 * canvasHeight,
       left: 0.01 * canvasWidth,
       width: 68,
       height: 78,
@@ -429,6 +432,18 @@ const main = async () => {
       lineHeight: 18,
       leftPadding: 4,
       zIndex: 900
+    };
+
+    const sideBarCopyButtonProps = {
+      top: 0.87 * canvasHeight,
+      left: 0.8 * canvasWidth,
+      width: sideBarProps.width - 0.04 * canvasWidth,
+      height: 78,
+      lineHeight: 60,
+      bottomPadding: 18,
+      leftPadding: 20,
+      lines: ["Copy"],
+      zIndex: 901
     };
     drawTextbox({
       renderBuffer,
@@ -687,14 +702,17 @@ const main = async () => {
     );
     if (sidebarEntity) {
       const lines: string[] = [];
-      sortBy(
+      const sideBarEntities = sortBy(
         e => -e.zIndex,
         entities.filter(
           e =>
             distance(sidebarEntity.midpoint, e.midpoint) <
             sidebarEntity.radius + e.radius - 0.000001
         )
-      ).forEach(e => prettyPrintEntity(e).forEach(l => lines.push(l)));
+      );
+      sideBarEntities.forEach(e =>
+        prettyPrintEntity(e).forEach(l => lines.push(l))
+      );
       drawTextbox({
         renderBuffer,
         lines,
@@ -702,6 +720,33 @@ const main = async () => {
           sideBarProps.height - sideBarProps.lineHeight * lines.length,
         ...sideBarProps
       });
+      drawTextbox({
+        renderBuffer,
+        ...sideBarCopyButtonProps
+      });
+      if (mouse.released && mouse.position) {
+        const [x, y] = mouse.position;
+        if (
+          x > sideBarCopyButtonProps.left &&
+          x < sideBarCopyButtonProps.left + sideBarCopyButtonProps.width &&
+          y > sideBarCopyButtonProps.top &&
+          y < sideBarCopyButtonProps.top + sideBarCopyButtonProps.height
+        ) {
+          const text = JSON.stringify(sideBarEntities);
+
+          (async () => {
+            try {
+              const type = "text/plain";
+              const data = [
+                new ClipboardItem({ [type]: new Blob([text], { type }) })
+              ];
+              await (navigator.clipboard as any)?.write(data);
+            } catch (e) {
+              console.log("Cannot copy to clipboard: ", text);
+            }
+          })();
+        }
+      }
     }
 
     flush(ctx, renderBuffer);
