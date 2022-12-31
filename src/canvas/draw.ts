@@ -47,6 +47,39 @@ export const drawImage = ({
   });
 };
 
+export const drawRepeatingImage = ({
+  renderBuffer,
+  image,
+  brightness,
+  position: [x, y],
+  scale,
+  width,
+  height,
+  zIndex
+}: {
+  renderBuffer: RenderBuffer;
+  image: CanvasImageSource;
+  brightness: number;
+  position: [number, number];
+  scale: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}) => {
+  renderBuffer.push({
+    action: ctx => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.filter = `brightness(${brightness})`;
+      ctx.fillStyle = ctx.createPattern(image, "repeat")!;
+      ctx.fillRect(0 - x / scale, 0 - y / scale, width / scale, height / scale);
+      ctx.restore();
+    },
+    zIndex
+  });
+};
+
 export const drawWedge = ({
   renderBuffer,
   start: [x, y],
@@ -112,34 +145,6 @@ export const drawLine = ({
   });
 };
 
-export const drawAxisAlignedRect = ({
-  renderBuffer,
-  left,
-  top,
-  width,
-  height,
-  fillStyle,
-  zIndex
-}: {
-  renderBuffer: RenderBuffer;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  fillStyle: CanvasRenderingContext2D["fillStyle"];
-  zIndex: number;
-}) => {
-  renderBuffer.push({
-    action: ctx => {
-      ctx.save();
-      ctx.fillStyle = fillStyle;
-      ctx.fillRect(left, top, width, height);
-      ctx.restore();
-    },
-    zIndex
-  });
-};
-
 export const drawCircle = ({
   renderBuffer,
   radius,
@@ -171,6 +176,34 @@ export const drawCircle = ({
         ctx.strokeStyle = strokeStyle;
         ctx.stroke();
       }
+      ctx.restore();
+    },
+    zIndex
+  });
+};
+
+export const drawAxisAlignedRect = ({
+  renderBuffer,
+  left,
+  top,
+  width,
+  height,
+  fillStyle,
+  zIndex
+}: {
+  renderBuffer: RenderBuffer;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  fillStyle: CanvasRenderingContext2D["fillStyle"];
+  zIndex: number;
+}) => {
+  renderBuffer.push({
+    action: ctx => {
+      ctx.save();
+      ctx.fillStyle = fillStyle;
+      ctx.fillRect(left, top, width, height);
       ctx.restore();
     },
     zIndex

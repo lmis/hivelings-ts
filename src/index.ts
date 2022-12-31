@@ -2,15 +2,15 @@
 import { loadAssets } from "canvas/assets";
 import {
   RenderBuffer,
+  drawRepeatingImage,
   drawImage,
-  drawAxisAlignedRect,
   drawTextbox,
   initializeRenderBuffer,
   flush,
   drawCircle,
   drawWedge
 } from "canvas/draw";
-import { Position, sortBy, clamp, hasAll, distance } from "utils";
+import { Position, sortBy, clamp, hasAll, distance, wait } from "utils";
 import { hBounds, vBounds } from "config";
 import {
   applyOutput,
@@ -77,19 +77,20 @@ export interface GameState {
 
 const drawBackground = (
   renderBuffer: RenderBuffer,
-  background: any,
-  scale: number,
-  [x, y]: Position
+  background: HTMLImageElement,
+  canvasWidth: number,
+  canvasHeight: number,
+  scale: any,
+  position: Position
 ) => {
-  const height = background.height * scale;
-  const width = background.width * scale;
-  drawAxisAlignedRect({
+  drawRepeatingImage({
     renderBuffer,
-    fillStyle: "rgb(30,60,15)",
-    top: y - height / 2,
-    left: x - width / 2,
-    height,
-    width,
+    image: background,
+    brightness: 0.1,
+    position,
+    scale: scale / 20,
+    width: canvasWidth,
+    height: canvasHeight,
     zIndex: -10
   });
 };
@@ -99,18 +100,31 @@ const handleKeyPresses = (
   released: Set<string>,
   state: GameState
 ) => {
+  const { scale } = state;
   if (held.has("Add") || hasAll(held, ["Shift", "ArrowUp"]))
-    state.scale = Math.min(state.scale + 0.4, 80);
+    state.scale = Math.min(state.scale * 1.05, 80);
   if (held.has("Subtract") || hasAll(held, ["Shift", "ArrowDown"]))
-    state.scale = Math.max(state.scale - 0.4, 1);
+    state.scale = Math.max(state.scale / 1.05, 2);
   if (held.has("ArrowUp") && !held.has("Shift"))
-    state.cameraPosition[1] = clamp(state.cameraPosition[1] + 0.2, vBounds);
+    state.cameraPosition[1] = clamp(
+      state.cameraPosition[1] + 10 / scale,
+      vBounds
+    );
   if (held.has("ArrowDown") && !held.has("Shift"))
-    state.cameraPosition[1] = clamp(state.cameraPosition[1] - 0.2, vBounds);
+    state.cameraPosition[1] = clamp(
+      state.cameraPosition[1] - 10 / scale,
+      vBounds
+    );
   if (held.has("ArrowLeft"))
-    state.cameraPosition[0] = clamp(state.cameraPosition[0] - 0.2, hBounds);
+    state.cameraPosition[0] = clamp(
+      state.cameraPosition[0] - 10 / scale,
+      hBounds
+    );
   if (held.has("ArrowRight"))
-    state.cameraPosition[0] = clamp(state.cameraPosition[0] + 0.2, hBounds);
+    state.cameraPosition[0] = clamp(
+      state.cameraPosition[0] + 10 / scale,
+      hBounds
+    );
   if (released.has("1")) state.speed = 1;
   if (released.has("2")) state.speed = 2;
   if (released.has("3")) state.speed = 3;
@@ -162,6 +176,22 @@ const assetDescriptors = {
 
 const main = async () => {
   const assets = await loadAssets(assetDescriptors);
+  if (!assets) {
+    // Unfortunately, sometimes code sandbox will serve the page before the assets
+    // are available leading the require mechanism to fail here.
+    // We cannot just re-try loading the assets because the `require` mechanism won't
+    // re-evaluate if called again. Instead we reload the page after a short timeout
+    console.log("Assets not ready, reloading in 2 seconds");
+    await wait(2000);
+    console.log("Reloading");
+    window.location.reload();
+    return;
+  } else {
+    const loadingIndicator = window.document.getElementById("loading");
+    if (loadingIndicator) {
+      loadingIndicator.style.display = "none";
+    }
+  }
   const canvas = document.getElementById("root") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d");
 
@@ -373,6 +403,8 @@ const main = async () => {
     drawBackground(
       renderBuffer,
       assets.background,
+      canvasWidth,
+      canvasHeight,
       scale,
       transformPositionToPixelSpace([0, 0])
     );

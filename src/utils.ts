@@ -68,3 +68,7 @@ export const takeWhile = <T>(pred: (x: T) => boolean, xs: T[]): T[] => {
   }
   return xs.slice(0, i);
 };
+
+export const wait = (millis: number): Promise<void> => {
+  return new Promise((resolve, reject) => setTimeout(resolve, millis));
+};
