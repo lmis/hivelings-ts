@@ -1,7 +1,9 @@
 # What is this?
+
 Hivelings is a game that you play by programming - in any language you choose! Control a hive mind by writing a websockets-server that receives the sensory input of each Hiveling and responds with a decision. Each individual in the hive mind acts independentaly but according to the same logic. Can you make them thrive?
 
 # How to Play
+
 To play the game you must implement a server that can understand and respond via websockets. In each iteration the server will receive one message per Hiveling. The following type definitions should help you understand the shape of input and expected output. Each message sent to your server will contain a string content with a JSON adhering to the `Input` type below. In turn, the game will await a response containing a JSON string adhereing to the `Output` type below.
 
 ```typescript
@@ -83,9 +85,7 @@ export interface Output<T> {
 A simple example of a valid response would be `'{"decision":{"type":"TURN","degrees":90},"memory":""}'` where the type parameter `T` for the `memory` field is `String`.
 
 # Example Servers
-The following collects example websockets server to help you get started
-- Node.js/typescript: https://github.com/lmis/hivelings-node-ts
 
-# Support for Languages that don't Support Websockets
-If your favorite language does not support websockets or you simply don't feel like going through the hassle of setting it up
-TODO
+The following collects example websockets server to help you get started
+
+- Node.js/typescript: https://github.com/lmis/hivelings-node-ts
